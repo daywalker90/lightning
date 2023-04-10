@@ -1,14 +1,23 @@
 use anyhow::{anyhow, Context, Result};
 use cln_grpc::pb::node_server::NodeServer;
 use cln_plugin::{options, Builder};
-use log::{debug, warn};
+use log::{debug, info, warn};
+use parking_lot::Mutex;
+use std::collections::HashMap;
 use std::net::SocketAddr;
 use std::path::{Path, PathBuf};
+use std::sync::Arc;
 
+mod config;
+mod hooks;
 mod tls;
+mod util;
 
 #[derive(Clone, Debug)]
-struct PluginState {
+pub struct PluginState {
+    pub config: Arc<Mutex<config::Config>>,
+    pub blockheight: Arc<Mutex<u64>>,
+    pub invoice_amts: Arc<Mutex<HashMap<String, u64>>>,
     rpc_path: PathBuf,
     identity: tls::Identity,
     ca_cert: Vec<u8>,
@@ -17,21 +26,41 @@ struct PluginState {
 #[tokio::main(flavor = "current_thread")]
 async fn main() -> Result<()> {
     debug!("Starting grpc plugin");
+    std::env::set_var("CLN_PLUGIN_LOG", "debug");
     let path = Path::new("lightning-rpc");
 
     let directory = std::env::current_dir()?;
     let (identity, ca_cert) = tls::init(&directory)?;
 
+    let state = PluginState {
+        config: Arc::new(Mutex::new(config::Config::new())),
+        blockheight: Arc::new(Mutex::new(u64::default())),
+        invoice_amts: Arc::new(Mutex::new(HashMap::new())),
+        rpc_path: path.into(),
+        identity,
+        ca_cert,
+    };
+
     let plugin = match Builder::new(tokio::io::stdin(), tokio::io::stdout())
         .option(options::ConfigOption::new(
             "grpc-port",
-            options::Value::Integer(-1),
+            options::Value::Integer(50973),
             "Which port should the grpc plugin listen for incoming connections?",
         ))
+        .hook("htlc_accepted", hooks::htlc_handler)
+        .subscribe("block_added", hooks::block_added)
+        .dynamic()
         .configure()
         .await?
     {
-        Some(p) => p,
+        Some(p) => {
+            info!("read config");
+            match config::read_config(&p, state.clone()).await {
+                Ok(()) => &(),
+                Err(e) => return p.disable(format!("{}", e).as_str()).await,
+            };
+            p
+        }
         None => return Ok(()),
     };
 
@@ -48,21 +77,15 @@ async fn main() -> Result<()> {
         Some(o) => return Err(anyhow!("grpc-port is not a valid integer: {:?}", o)),
     };
 
-    let state = PluginState {
-        rpc_path: path.into(),
-        identity,
-        ca_cert,
-    };
-
     let plugin = plugin.start(state.clone()).await?;
 
     let bind_addr: SocketAddr = format!("0.0.0.0:{}", bind_port).parse().unwrap();
 
     tokio::select! {
         _ = plugin.join() => {
-	    // This will likely never be shown, if we got here our
-	    // parent process is exiting and not processing out log
-	    // messages anymore.
+        // This will likely never be shown, if we got here our
+        // parent process is exiting and not processing out log
+        // messages anymore.
             debug!("Plugin loop terminated")
         }
         e = run_interface(bind_addr, state) => {
