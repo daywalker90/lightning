@@ -25,6 +25,10 @@ service Node {
 	rpc DelExpiredInvoice(DelexpiredinvoiceRequest) returns (DelexpiredinvoiceResponse) {}
 	rpc DelInvoice(DelinvoiceRequest) returns (DelinvoiceResponse) {}
 	rpc Invoice(InvoiceRequest) returns (InvoiceResponse) {}
+	rpc HodlInvoice(InvoiceRequest) returns (InvoiceResponse) {}
+	rpc HodlInvoiceSettle(HodlInvoiceSettleRequest) returns (HodlInvoiceSettleResponse) {}
+	rpc HodlInvoiceCancel(HodlInvoiceCancelRequest) returns (HodlInvoiceCancelResponse) {}
+	rpc HodlInvoiceLookup(HodlInvoiceLookupRequest) returns (HodlInvoiceLookupResponse) {}
 	rpc ListDatastore(ListdatastoreRequest) returns (ListdatastoreResponse) {}
 	rpc ListInvoices(ListinvoicesRequest) returns (ListinvoicesResponse) {}
 	rpc SendOnion(SendonionRequest) returns (SendonionResponse) {}
@@ -603,6 +607,48 @@ message InvoiceResponse {
 	optional string warning_deadends = 7;
 	optional string warning_private_unused = 8;
 	optional string warning_mpp = 9;
+}
+
+message HodlInvoiceSettleRequest {
+	bytes payment_hash = 1;
+}
+
+message HodlInvoiceSettleResponse {
+	enum Hodlstate {
+		OPEN = 0;
+		SETTLED = 1;
+		CANCELED = 2;
+		ACCEPTED = 3;
+	}
+	Hodlstate state = 5;
+}
+
+message HodlInvoiceCancelRequest {
+	bytes payment_hash = 1;
+}
+
+message HodlInvoiceCancelResponse {
+	enum Hodlstate {
+		OPEN = 0;
+		SETTLED = 1;
+		CANCELED = 2;
+		ACCEPTED = 3;
+	}
+	Hodlstate state = 5;
+}
+
+message HodlInvoiceLookupRequest {
+	bytes payment_hash = 1;
+}
+
+message HodlInvoiceLookupResponse {
+	enum Hodlstate {
+		OPEN = 0;
+		SETTLED = 1;
+		CANCELED = 2;
+		ACCEPTED = 3;
+	}
+	Hodlstate state = 5;
 }
 
 message ListdatastoreRequest {
