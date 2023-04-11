@@ -70,7 +70,7 @@ impl fmt::Display for Hodlstate {
     }
 }
 
-pub async fn datastore_raw(
+async fn datastore_raw(
     rpc_path: &PathBuf,
     key: Vec<String>,
     string: Option<String>,
@@ -135,7 +135,7 @@ pub async fn datastore_update_state(
     .await
 }
 
-pub async fn datastore_new_htlc_expiry(
+pub async fn datastore_htlc_expiry(
     rpc_path: &PathBuf,
     pay_hash: String,
     string: String,
@@ -149,33 +149,33 @@ pub async fn datastore_new_htlc_expiry(
         ],
         Some(string),
         None,
-        Some(DatastoreMode::MUST_CREATE),
+        Some(DatastoreMode::CREATE_OR_REPLACE),
         None,
     )
     .await
 }
 
-pub async fn datastore_update_htlc_expiry(
-    rpc_path: &PathBuf,
-    pay_hash: String,
-    string: String,
-) -> Result<DatastoreResponse, Error> {
-    datastore_raw(
-        rpc_path,
-        vec![
-            HODLVOICE_PLUGIN_NAME.to_string(),
-            pay_hash,
-            HODLVOICE_DATASTORE_HTLC_EXPIRY.to_string(),
-        ],
-        Some(string),
-        None,
-        Some(DatastoreMode::MUST_REPLACE),
-        None,
-    )
-    .await
-}
+// pub async fn datastore_update_htlc_expiry(
+//     rpc_path: &PathBuf,
+//     pay_hash: String,
+//     string: String,
+// ) -> Result<DatastoreResponse, Error> {
+//     datastore_raw(
+//         rpc_path,
+//         vec![
+//             HODLVOICE_PLUGIN_NAME.to_string(),
+//             pay_hash,
+//             HODLVOICE_DATASTORE_HTLC_EXPIRY.to_string(),
+//         ],
+//         Some(string),
+//         None,
+//         Some(DatastoreMode::MUST_REPLACE),
+//         None,
+//     )
+//     .await
+// }
 
-pub async fn listdatastore_raw(
+async fn listdatastore_raw(
     rpc_path: &PathBuf,
     key: Option<Vec<String>>,
 ) -> Result<ListdatastoreResponse, Error> {
@@ -221,10 +221,7 @@ pub async fn listdatastore_state(rpc_path: &PathBuf, pay_hash: String) -> Result
     Ok(state)
 }
 
-pub async fn listdatastore_htlc_expiry(
-    rpc_path: &PathBuf,
-    pay_hash: String,
-) -> Result<String, Error> {
+pub async fn listdatastore_htlc_expiry(rpc_path: &PathBuf, pay_hash: String) -> Result<u32, Error> {
     let response = listdatastore_raw(
         rpc_path,
         Some(vec![
@@ -251,6 +248,6 @@ pub async fn listdatastore_htlc_expiry(
                 pay_hash
             )
         })?;
-
-    Ok(data.clone())
+    let cltv = data.parse::<u32>()?;
+    Ok(cltv)
 }

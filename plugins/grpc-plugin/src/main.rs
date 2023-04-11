@@ -16,7 +16,7 @@ mod util;
 #[derive(Clone, Debug)]
 pub struct PluginState {
     pub config: Arc<Mutex<config::Config>>,
-    pub blockheight: Arc<Mutex<u64>>,
+    pub blockheight: Arc<Mutex<u32>>,
     pub invoice_amts: Arc<Mutex<HashMap<String, u64>>>,
     rpc_path: PathBuf,
     identity: tls::Identity,
@@ -34,7 +34,7 @@ async fn main() -> Result<()> {
 
     let state = PluginState {
         config: Arc::new(Mutex::new(config::Config::new())),
-        blockheight: Arc::new(Mutex::new(u64::default())),
+        blockheight: Arc::new(Mutex::new(u32::default())),
         invoice_amts: Arc::new(Mutex::new(HashMap::new())),
         rpc_path: path.into(),
         identity,

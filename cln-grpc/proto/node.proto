@@ -29,6 +29,7 @@ service Node {
 	rpc HodlInvoiceSettle(HodlInvoiceSettleRequest) returns (HodlInvoiceSettleResponse) {}
 	rpc HodlInvoiceCancel(HodlInvoiceCancelRequest) returns (HodlInvoiceCancelResponse) {}
 	rpc HodlInvoiceLookup(HodlInvoiceLookupRequest) returns (HodlInvoiceLookupResponse) {}
+	rpc DelHodlInvoiceState(DelHodlInvoiceStateRequest) returns (DelHodlInvoiceStateResponse) {}
 	rpc ListDatastore(ListdatastoreRequest) returns (ListdatastoreResponse) {}
 	rpc ListInvoices(ListinvoicesRequest) returns (ListinvoicesResponse) {}
 	rpc SendOnion(SendonionRequest) returns (SendonionResponse) {}
@@ -620,7 +621,7 @@ message HodlInvoiceSettleResponse {
 		CANCELED = 2;
 		ACCEPTED = 3;
 	}
-	Hodlstate state = 5;
+	Hodlstate state = 1;
 }
 
 message HodlInvoiceCancelRequest {
@@ -634,7 +635,7 @@ message HodlInvoiceCancelResponse {
 		CANCELED = 2;
 		ACCEPTED = 3;
 	}
-	Hodlstate state = 5;
+	Hodlstate state = 1;
 }
 
 message HodlInvoiceLookupRequest {
@@ -648,7 +649,16 @@ message HodlInvoiceLookupResponse {
 		CANCELED = 2;
 		ACCEPTED = 3;
 	}
-	Hodlstate state = 5;
+	Hodlstate state = 1;
+	optional uint32 htlc_cltv = 2;
+}
+
+message DelHodlInvoiceStateRequest {
+	bytes payment_hash = 1;
+}
+
+message DelHodlInvoiceStateResponse {
+	bool success = 1;
 }
 
 message ListdatastoreRequest {
