@@ -43,8 +43,8 @@ async fn main() -> Result<()> {
 
     let plugin = match Builder::new(tokio::io::stdin(), tokio::io::stdout())
         .option(options::ConfigOption::new(
-            "grpc-port",
-            options::Value::Integer(50973),
+            "grpc-hodl-port",
+            options::Value::Integer(-1),
             "Which port should the grpc plugin listen for incoming connections?",
         ))
         .hook("htlc_accepted", hooks::htlc_handler)
@@ -64,17 +64,17 @@ async fn main() -> Result<()> {
         None => return Ok(()),
     };
 
-    let bind_port = match plugin.option("grpc-port") {
+    let bind_port = match plugin.option("grpc-hodl-port") {
         Some(options::Value::Integer(-1)) => {
-            log::info!("`grpc-port` option is not configured, exiting.");
+            log::info!("`grpc-hodl-port` option is not configured, exiting.");
             plugin
-                .disable("`grpc-port` option is not configured.")
+                .disable("`grpc-hodl-port` option is not configured.")
                 .await?;
             return Ok(());
         }
         Some(options::Value::Integer(i)) => i,
-        None => return Err(anyhow!("Missing 'grpc-port' option")),
-        Some(o) => return Err(anyhow!("grpc-port is not a valid integer: {:?}", o)),
+        None => return Err(anyhow!("Missing 'grpc-hodl-port' option")),
+        Some(o) => return Err(anyhow!("grpc-hodl-port is not a valid integer: {:?}", o)),
     };
 
     let plugin = plugin.start(state.clone()).await?;
