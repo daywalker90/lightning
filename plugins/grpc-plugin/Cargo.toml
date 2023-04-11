@@ -1,10 +1,10 @@
 [package]
 edition = "2021"
-name = "cln-grpc-plugin"
+name = "cln-grpc-hodl-plugin"
 version = "0.1.1"
 
 [[bin]]
-name = "cln-grpc"
+name = "cln-grpc-hodl"
 path = "src/main.rs"
 
 [dependencies]
