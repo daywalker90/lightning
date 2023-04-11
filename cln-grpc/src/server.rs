@@ -1,14 +1,18 @@
 use crate::pb::node_server::Node;
 use crate::{
     datastore_new_state, datastore_update_state, listdatastore_htlc_expiry, listdatastore_state,
-    pb, Hodlstate, HODLVOICE_DATASTORE_HTLC_EXPIRY, HODLVOICE_DATASTORE_STATE,
-    HODLVOICE_PLUGIN_NAME,
+    pb, short_channel_id_to_string, Hodlstate, HODLVOICE_DATASTORE_HTLC_EXPIRY,
+    HODLVOICE_DATASTORE_STATE, HODLVOICE_PLUGIN_NAME,
 };
 use anyhow::Result;
 use cln_rpc::model::requests;
+use cln_rpc::primitives::{Amount, Routehint, Routehop, ShortChannelId};
 use cln_rpc::{ClnRpc, Request, Response};
+use lightning_invoice::{Invoice, InvoiceDescription, SignedRawInvoice};
 use log::{debug, trace};
+use std::collections::HashMap;
 use std::path::{Path, PathBuf};
+use std::str::FromStr;
 use tonic::{Code, Status};
 
 #[derive(Clone)]
@@ -523,6 +527,102 @@ impl Node for Server {
                 format!("Unexpected result {:?} to method call Invoice", r),
             )),
         }
+    }
+
+    async fn decode_bolt11(
+        &self,
+        request: tonic::Request<pb::DecodeBolt11Request>,
+    ) -> Result<tonic::Response<pb::DecodeBolt11Response>, tonic::Status> {
+        let req = request.into_inner();
+        let req: pb::DecodeBolt11Request = req.into();
+        debug!("Client asked for decode_bolt11");
+        trace!("decode_bolt11 request: {:?}", req);
+        let raw_invoice = match SignedRawInvoice::from_str(&req.bolt11).map_err(|e| e.to_string()) {
+            Ok(b11) => b11,
+            Err(e) => {
+                return Err(Status::new(
+                    Code::Internal,
+                    format!(
+                        "Invalid bolt11 string in method call decode_bolt11: {:?}",
+                        e
+                    ),
+                ))
+            }
+        };
+        let invoice = match Invoice::from_signed(raw_invoice) {
+            Ok(iv) => iv,
+            Err(e) => {
+                return Err(Status::new(
+                    Code::Internal,
+                    format!("Invalid invoice in method call decode_bolt11: {:?}", e),
+                ))
+            }
+        };
+        let amount_msat = match invoice.amount_milli_satoshis() {
+            Some(amt) => Some(Amount::from_msat(amt).into()),
+            None => None,
+        };
+        let mut description = None;
+        let mut description_hash = None;
+        match invoice.description() {
+            InvoiceDescription::Direct(desc) => {
+                description = Some(desc.clone().into_inner());
+            }
+            InvoiceDescription::Hash(hash) => {
+                description_hash = Some(hash.0.to_vec());
+            }
+        }
+
+        let mut pb_route_hints = Vec::new();
+
+        for hint in &invoice.route_hints() {
+            let mut scid_vec = HashMap::new();
+            for hop in &hint.0 {
+                match ShortChannelId::from_str(&short_channel_id_to_string(hop.short_channel_id)) {
+                    Ok(o) => scid_vec.insert(hop.short_channel_id, o),
+                    Err(e) => {
+                        return Err(Status::new(
+                            Code::InvalidArgument,
+                            format!("Error parsing short channel id: {:?}", e),
+                        ))
+                    }
+                };
+            }
+
+            let pb_route_hops = hint
+                .0
+                .iter()
+                .map(|hop| {
+                    let scid = scid_vec.get(&hop.short_channel_id).unwrap();
+                    Routehop {
+                        id: hop.src_node_id,
+                        scid: *scid,
+                        feebase: Amount::from_msat(hop.fees.base_msat as u64),
+                        feeprop: hop.fees.proportional_millionths,
+                        expirydelta: hop.cltv_expiry_delta,
+                    }
+                })
+                .collect();
+
+            pb_route_hints.push(
+                Routehint {
+                    hops: pb_route_hops,
+                }
+                .into(),
+            );
+        }
+
+        Ok(tonic::Response::new(pb::DecodeBolt11Response {
+            description,
+            description_hash,
+            payment_hash: invoice.payment_hash().to_vec(),
+            expiry: invoice.expiry_time().as_secs(),
+            amount_msat,
+            route_hints: Some(pb::RoutehintList {
+                hints: pb_route_hints,
+            }),
+            timestamp: invoice.duration_since_epoch().as_secs() as u32,
+        }))
     }
 
     async fn hodl_invoice(

@@ -24,6 +24,7 @@ service Node {
 	rpc DelDatastore(DeldatastoreRequest) returns (DeldatastoreResponse) {}
 	rpc DelExpiredInvoice(DelexpiredinvoiceRequest) returns (DelexpiredinvoiceResponse) {}
 	rpc DelInvoice(DelinvoiceRequest) returns (DelinvoiceResponse) {}
+	rpc DecodeBolt11(DecodeBolt11Request) returns (DecodeBolt11Response) {}
 	rpc Invoice(InvoiceRequest) returns (InvoiceResponse) {}
 	rpc HodlInvoice(InvoiceRequest) returns (InvoiceResponse) {}
 	rpc HodlInvoiceSettle(HodlInvoiceSettleRequest) returns (HodlInvoiceSettleResponse) {}
@@ -584,6 +585,21 @@ message DelinvoiceResponse {
 	uint64 expires_at = 8;
 	optional bytes local_offer_id = 9;
 	optional string invreq_payer_note = 11;
+}
+
+message DecodeBolt11Request{
+	string bolt11 = 1;
+	optional string description = 2;
+}
+
+message DecodeBolt11Response{
+	optional string description = 1;
+	optional bytes description_hash = 2;
+	bytes payment_hash = 3;
+	uint64 expiry = 5;
+	optional Amount amount_msat = 6;
+	RoutehintList route_hints = 4;
+	uint32 timestamp = 7;
 }
 
 message InvoiceRequest {
