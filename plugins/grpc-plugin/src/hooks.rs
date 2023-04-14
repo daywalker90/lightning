@@ -5,7 +5,7 @@ use cln_grpc::{datastore_htlc_expiry, datastore_update_state, listdatastore_stat
 use cln_plugin::Plugin;
 use cln_rpc::primitives::Amount;
 use log::{debug, info, warn};
-use rand::Rng;
+use rand::{rngs::StdRng, RngCore, SeedableRng};
 use serde_json::json;
 use tokio::time;
 
@@ -18,11 +18,12 @@ pub(crate) async fn htlc_handler(
     plugin: Plugin<PluginState>,
     v: serde_json::Value,
 ) -> Result<serde_json::Value, Error> {
-    let mut rng = StdRng::from_entropy();
-    let mut buffer = [0; 4];
-    rng.fill_bytes(&mut buffer);
-    let random_number = u32::from_le_bytes(buffer);
-    time::sleep(Duration::from_secs(random_number)).await;
+    // let mut rng = StdRng::from_entropy();
+    // let mut buffer = [0; 8];
+    // rng.fill_bytes(&mut buffer);
+    // let random_number = u64::from_le_bytes(buffer);
+    // time::sleep(Duration::from_secs(random_number)).await;
+    // return Ok(json!({"result": "fail"}));
     if let Some(htlc) = v.get("htlc") {
         if let Some(pay_hash) = htlc
             .get("payment_hash")
