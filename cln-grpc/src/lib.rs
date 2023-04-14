@@ -10,11 +10,12 @@ use std::{fmt, path::PathBuf};
 use anyhow::{anyhow, Error};
 use cln_rpc::{
     model::{
-        DatastoreMode, DatastoreRequest, DatastoreResponse, ListdatastoreRequest,
-        ListdatastoreResponse,
+        DatastoreMode, DatastoreRequest, DatastoreResponse, ListdatastoreDatastore,
+        ListdatastoreRequest, ListdatastoreResponse,
     },
     ClnRpc, Request, Response,
 };
+use log::info;
 
 pub use crate::server::Server;
 
@@ -58,6 +59,62 @@ impl Hodlstate {
             Hodlstate::Accepted => 3,
         }
     }
+    pub fn is_valid_transition(&self, newstate: &Hodlstate) -> bool {
+        match self {
+            Hodlstate::Open => match newstate {
+                Hodlstate::Settled => false,
+                _ => true,
+            },
+            Hodlstate::Settled => match newstate {
+                Hodlstate::Settled => true,
+                _ => false,
+            },
+            Hodlstate::Canceled => match newstate {
+                Hodlstate::Canceled => true,
+                _ => false,
+            },
+            Hodlstate::Accepted => true,
+        }
+    }
+    // pub async fn accepting(&self) -> Result<(), Error> {
+    //     match *self {
+    //         Hodlstate::Open => Ok(()),
+    //         _ => Err(anyhow!(
+    //             "illegal state transition for accepting: {}",
+    //             *self.to_string()
+    //         )),
+    //     }
+    // }
+
+    // pub async fn unaccepting(&self) -> Result<(), Error> {
+    //     match *self {
+    //         Hodlstate::Accepted => Ok(()),
+    //         _ => Err(anyhow!(
+    //             "illegal state transition for unaccepting: {}",
+    //             *self.to_string()
+    //         )),
+    //     }
+    // }
+
+    // pub async fn canceling(&self) -> Result<(), Error> {
+    //     match *self {
+    //         Hodlstate::Open | Hodlstate::Accepted => Ok(()),
+    //         _ => Err(anyhow!(
+    //             "illegal state transition for canceling: {}",
+    //             *self.to_string()
+    //         )),
+    //     }
+    // }
+
+    // pub async fn settling(&self) -> Result<(), Error> {
+    //     match *self {
+    //         Hodlstate::Accepted => Ok(()),
+    //         _ => Err(anyhow!(
+    //             "illegal state transition for settling: {}",
+    //             *self.to_string()
+    //         )),
+    //     }
+    // }
 }
 impl fmt::Display for Hodlstate {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
@@ -81,21 +138,22 @@ async fn datastore_raw(
     let mut rpc = ClnRpc::new(&rpc_path).await?;
     let datastore_request = rpc
         .call(Request::Datastore(DatastoreRequest {
-            key,
-            string,
+            key: key.clone(),
+            string: string.clone(),
             hex,
             mode,
             generation,
         }))
         .await
         .map_err(|e| anyhow!("Error calling datastore: {:?}", e))?;
+    info!("set {:?} to {}", key, string.unwrap());
     match datastore_request {
         Response::Datastore(info) => Ok(info),
         e => Err(anyhow!("Unexpected result in datastore: {:?}", e)),
     }
 }
 
-pub async fn datastore_new_state(
+async fn datastore_new_state(
     rpc_path: &PathBuf,
     pay_hash: String,
     string: String,
@@ -116,6 +174,27 @@ pub async fn datastore_new_state(
 }
 
 pub async fn datastore_update_state(
+    rpc_path: &PathBuf,
+    pay_hash: String,
+    string: String,
+    generation: u64,
+) -> Result<DatastoreResponse, Error> {
+    datastore_raw(
+        rpc_path,
+        vec![
+            HODLVOICE_PLUGIN_NAME.to_string(),
+            pay_hash,
+            HODLVOICE_DATASTORE_STATE.to_string(),
+        ],
+        Some(string),
+        None,
+        Some(DatastoreMode::MUST_REPLACE),
+        Some(generation),
+    )
+    .await
+}
+
+async fn datastore_update_state_forced(
     rpc_path: &PathBuf,
     pay_hash: String,
     string: String,
@@ -190,7 +269,10 @@ async fn listdatastore_raw(
     }
 }
 
-pub async fn listdatastore_state(rpc_path: &PathBuf, pay_hash: String) -> Result<Hodlstate, Error> {
+pub async fn listdatastore_state(
+    rpc_path: &PathBuf,
+    pay_hash: String,
+) -> Result<ListdatastoreDatastore, Error> {
     let response = listdatastore_raw(
         rpc_path,
         Some(vec![
@@ -200,25 +282,22 @@ pub async fn listdatastore_state(rpc_path: &PathBuf, pay_hash: String) -> Result
         ]),
     )
     .await?;
-    let data = response
-        .datastore
-        .first()
-        .ok_or_else(|| {
-            anyhow!(
-                "empty result for listdatastore_state with pay_hash: {}",
-                pay_hash
-            )
-        })?
-        .string
-        .as_ref()
-        .ok_or_else(|| {
-            anyhow!(
-                "None string for listdatastore_state with pay_hash: {}",
-                pay_hash
-            )
-        })?;
-    let state = Hodlstate::from_str(data)?;
-    Ok(state)
+    let data = response.datastore.first().ok_or_else(|| {
+        anyhow!(
+            "empty result for listdatastore_state with pay_hash: {}",
+            pay_hash
+        )
+    })?;
+    // .string
+    // .as_ref()
+    // .ok_or_else(|| {
+    //     anyhow!(
+    //         "None string for listdatastore_state with pay_hash: {}",
+    //         pay_hash
+    //     )
+    // })?;
+    // let state = Hodlstate::from_str(data)?;
+    Ok(data.clone())
 }
 
 pub async fn listdatastore_htlc_expiry(rpc_path: &PathBuf, pay_hash: String) -> Result<u32, Error> {

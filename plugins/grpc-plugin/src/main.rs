@@ -18,6 +18,7 @@ pub struct PluginState {
     pub config: Arc<Mutex<config::Config>>,
     pub blockheight: Arc<Mutex<u32>>,
     pub invoice_amts: Arc<Mutex<HashMap<String, u64>>>,
+    pub states: Arc<tokio::sync::Mutex<HashMap<String, u64>>>,
     rpc_path: PathBuf,
     identity: tls::Identity,
     ca_cert: Vec<u8>,
@@ -26,7 +27,7 @@ pub struct PluginState {
 #[tokio::main(flavor = "current_thread")]
 async fn main() -> Result<()> {
     debug!("Starting grpc plugin");
-    std::env::set_var("CLN_PLUGIN_LOG", "debug");
+    // std::env::set_var("CLN_PLUGIN_LOG", "debug");
     let path = Path::new("lightning-rpc");
 
     let directory = std::env::current_dir()?;
@@ -36,6 +37,7 @@ async fn main() -> Result<()> {
         config: Arc::new(Mutex::new(config::Config::new())),
         blockheight: Arc::new(Mutex::new(u32::default())),
         invoice_amts: Arc::new(Mutex::new(HashMap::new())),
+        states: Arc::new(tokio::sync::Mutex::new(HashMap::new())),
         rpc_path: path.into(),
         identity,
         ca_cert,

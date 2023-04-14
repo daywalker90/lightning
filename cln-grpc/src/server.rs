@@ -1,8 +1,8 @@
 use crate::pb::node_server::Node;
 use crate::{
-    datastore_new_state, datastore_update_state, listdatastore_htlc_expiry, listdatastore_state,
-    pb, short_channel_id_to_string, Hodlstate, HODLVOICE_DATASTORE_HTLC_EXPIRY,
-    HODLVOICE_DATASTORE_STATE, HODLVOICE_PLUGIN_NAME,
+    datastore_new_state, datastore_update_state_forced, listdatastore_htlc_expiry,
+    listdatastore_state, pb, short_channel_id_to_string, Hodlstate,
+    HODLVOICE_DATASTORE_HTLC_EXPIRY, HODLVOICE_DATASTORE_STATE, HODLVOICE_PLUGIN_NAME,
 };
 use anyhow::Result;
 use cln_rpc::model::requests;
@@ -681,7 +681,7 @@ impl Node for Server {
         debug!("Client asked for hodlinvoicesettle");
         trace!("hodlinvoicesettle request: {:?}", req);
         let pay_hash = String::from_utf8(req.payment_hash.clone()).unwrap();
-        let hodlstate = match listdatastore_state(&self.rpc_path, pay_hash.clone()).await {
+        let data = match listdatastore_state(&self.rpc_path, pay_hash.clone()).await {
             Ok(st) => st,
             Err(e) => {
                 return Err(Status::new(
@@ -693,9 +693,21 @@ impl Node for Server {
                 ))
             }
         };
+        let hodlstate = match Hodlstate::from_str(&data.string.unwrap()) {
+            Ok(hs) => hs,
+            Err(e) => {
+                return Err(Status::new(
+                    Code::Internal,
+                    format!(
+                        "Unexpected result {:?} to method call Hodlstate::from_str",
+                        e
+                    ),
+                ))
+            }
+        };
         match hodlstate {
             Hodlstate::Accepted => {
-                let result = datastore_update_state(
+                let result = datastore_update_state_forced(
                     &self.rpc_path,
                     pay_hash,
                     Hodlstate::Settled.to_string(),
@@ -736,7 +748,7 @@ impl Node for Server {
         debug!("Client asked for hodlinvoiceCancel");
         trace!("hodlinvoiceCancel request: {:?}", req);
         let pay_hash = String::from_utf8(req.payment_hash.clone()).unwrap();
-        let hodlstate = match listdatastore_state(&self.rpc_path, pay_hash.clone()).await {
+        let data = match listdatastore_state(&self.rpc_path, pay_hash.clone()).await {
             Ok(st) => st,
             Err(e) => {
                 return Err(Status::new(
@@ -748,9 +760,21 @@ impl Node for Server {
                 ))
             }
         };
+        let hodlstate = match Hodlstate::from_str(&data.string.unwrap()) {
+            Ok(hs) => hs,
+            Err(e) => {
+                return Err(Status::new(
+                    Code::Internal,
+                    format!(
+                        "Unexpected result {:?} to method call Hodlstate::from_str",
+                        e
+                    ),
+                ))
+            }
+        };
         match hodlstate {
             Hodlstate::Open | Hodlstate::Accepted => {
-                let result = datastore_update_state(
+                let result = datastore_update_state_forced(
                     &self.rpc_path,
                     pay_hash,
                     Hodlstate::Canceled.to_string(),
@@ -792,13 +816,25 @@ impl Node for Server {
         trace!("hodlinvoiceLookup request: {:?}", req);
 
         let pay_hash = String::from_utf8(req.payment_hash.clone()).unwrap();
-        let hodlstate = match listdatastore_state(&self.rpc_path, pay_hash.clone()).await {
+        let data = match listdatastore_state(&self.rpc_path, pay_hash.clone()).await {
             Ok(st) => st,
             Err(e) => {
                 return Err(Status::new(
                     Code::Internal,
                     format!(
                         "Unexpected result {:?} to method call listdatastore_state",
+                        e
+                    ),
+                ))
+            }
+        };
+        let hodlstate = match Hodlstate::from_str(&data.string.unwrap()) {
+            Ok(hs) => hs,
+            Err(e) => {
+                return Err(Status::new(
+                    Code::Internal,
+                    format!(
+                        "Unexpected result {:?} to method call Hodlstate::from_str",
                         e
                     ),
                 ))

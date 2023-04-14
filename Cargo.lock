@@ -230,6 +230,7 @@ dependencies = [
  "log",
  "parking_lot",
  "prost",
+ "rand",
  "rcgen",
  "serde_json",
  "tokio",
