@@ -9,7 +9,7 @@ use cln_rpc::model::requests;
 use cln_rpc::primitives::{Amount, Routehint, Routehop, ShortChannelId};
 use cln_rpc::{ClnRpc, Request, Response};
 use lightning_invoice::{Invoice, InvoiceDescription, SignedRawInvoice};
-use log::{debug, trace};
+use log::{debug, info, trace};
 use std::collections::HashMap;
 use std::path::{Path, PathBuf};
 use std::str::FromStr;
@@ -680,7 +680,7 @@ impl Node for Server {
         let req: pb::HodlInvoiceSettleRequest = req.into();
         debug!("Client asked for hodlinvoicesettle");
         trace!("hodlinvoicesettle request: {:?}", req);
-        let pay_hash = String::from_utf8(req.payment_hash.clone()).unwrap();
+        let pay_hash = hex::encode(req.payment_hash.clone());
         let data = match listdatastore_state(&self.rpc_path, pay_hash.clone()).await {
             Ok(st) => st,
             Err(e) => {
@@ -747,7 +747,7 @@ impl Node for Server {
         let req: pb::HodlInvoiceCancelRequest = req.into();
         debug!("Client asked for hodlinvoiceCancel");
         trace!("hodlinvoiceCancel request: {:?}", req);
-        let pay_hash = String::from_utf8(req.payment_hash.clone()).unwrap();
+        let pay_hash = hex::encode(req.payment_hash.clone());
         let data = match listdatastore_state(&self.rpc_path, pay_hash.clone()).await {
             Ok(st) => st,
             Err(e) => {
@@ -814,8 +814,7 @@ impl Node for Server {
         let req: pb::HodlInvoiceLookupRequest = req.into();
         debug!("Client asked for hodlinvoiceLookup");
         trace!("hodlinvoiceLookup request: {:?}", req);
-
-        let pay_hash = String::from_utf8(req.payment_hash.clone()).unwrap();
+        let pay_hash = hex::encode(req.payment_hash.clone());
         let data = match listdatastore_state(&self.rpc_path, pay_hash.clone()).await {
             Ok(st) => st,
             Err(e) => {
@@ -872,7 +871,7 @@ impl Node for Server {
         debug!("Client asked for del_hodl_invoice_state");
         trace!("del_hodl_invoice_state request: {:?}", req);
 
-        let pay_hash = String::from_utf8(req.payment_hash.clone()).unwrap();
+        let pay_hash = hex::encode(req.payment_hash.clone());
         let _expiry_result;
         match listdatastore_htlc_expiry(&self.rpc_path, pay_hash.clone()).await {
             Ok(_cltv) => {
