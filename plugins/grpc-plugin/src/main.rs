@@ -1,24 +1,33 @@
 use anyhow::{anyhow, Context, Result};
 use cln_grpc::pb::node_server::NodeServer;
+use cln_grpc::Hodlstate;
 use cln_plugin::{options, Builder};
+use cln_rpc::model::ListinvoicesInvoices;
 use log::{debug, info, warn};
 use parking_lot::Mutex;
-use std::collections::HashMap;
+use std::collections::BTreeMap;
 use std::net::SocketAddr;
 use std::path::{Path, PathBuf};
 use std::sync::Arc;
 
 mod config;
 mod hooks;
+mod tasks;
 mod tls;
 mod util;
 
+#[derive(Clone, Debug, Copy)]
+pub struct Hodlupdate {
+    pub state: Hodlstate,
+    pub generation: u64,
+}
 #[derive(Clone, Debug)]
 pub struct PluginState {
     pub config: Arc<Mutex<config::Config>>,
     pub blockheight: Arc<Mutex<u32>>,
-    pub invoice_amts: Arc<Mutex<HashMap<String, u64>>>,
-    pub states: Arc<tokio::sync::Mutex<HashMap<String, u64>>>,
+    pub invoice_amts: Arc<Mutex<BTreeMap<String, u64>>>,
+    pub states: Arc<tokio::sync::Mutex<BTreeMap<String, Hodlupdate>>>,
+    pub invoices: Arc<Mutex<BTreeMap<String, ListinvoicesInvoices>>>,
     rpc_path: PathBuf,
     identity: tls::Identity,
     ca_cert: Vec<u8>,
@@ -27,7 +36,7 @@ pub struct PluginState {
 #[tokio::main(flavor = "current_thread")]
 async fn main() -> Result<()> {
     debug!("Starting grpc plugin");
-    // std::env::set_var("CLN_PLUGIN_LOG", "debug");
+    std::env::set_var("CLN_PLUGIN_LOG", "debug");
     let path = Path::new("lightning-rpc");
 
     let directory = std::env::current_dir()?;
@@ -36,8 +45,9 @@ async fn main() -> Result<()> {
     let state = PluginState {
         config: Arc::new(Mutex::new(config::Config::new())),
         blockheight: Arc::new(Mutex::new(u32::default())),
-        invoice_amts: Arc::new(Mutex::new(HashMap::new())),
-        states: Arc::new(tokio::sync::Mutex::new(HashMap::new())),
+        invoice_amts: Arc::new(Mutex::new(BTreeMap::new())),
+        states: Arc::new(tokio::sync::Mutex::new(BTreeMap::new())),
+        invoices: Arc::new(Mutex::new(BTreeMap::new())),
         rpc_path: path.into(),
         identity,
         ca_cert,
@@ -51,7 +61,6 @@ async fn main() -> Result<()> {
         ))
         .hook("htlc_accepted", hooks::htlc_handler)
         .subscribe("block_added", hooks::block_added)
-        .dynamic()
         .configure()
         .await?
     {
@@ -78,13 +87,33 @@ async fn main() -> Result<()> {
         None => return Err(anyhow!("Missing 'grpc-hodl-port' option")),
         Some(o) => return Err(anyhow!("grpc-hodl-port is not a valid integer: {:?}", o)),
     };
-
-    let plugin = plugin.start(state.clone()).await?;
+    let confplugin;
+    match plugin.start(state.clone()).await {
+        Ok(p) => {
+            info!("starting lookup_state task");
+            confplugin = p;
+            let lookupclone = confplugin.clone();
+            tokio::spawn(async move {
+                match tasks::lookup_state(lookupclone).await {
+                    Ok(()) => (),
+                    Err(e) => warn!("Error in lookup_state thread: {}", e.to_string()),
+                };
+            });
+            let cleanupclone = confplugin.clone();
+            tokio::spawn(async move {
+                match tasks::clean_up(cleanupclone).await {
+                    Ok(()) => (),
+                    Err(e) => warn!("Error in clean_up thread: {}", e.to_string()),
+                };
+            });
+        }
+        Err(e) => return Err(anyhow!("Error starting plugin: {}", e)),
+    }
 
     let bind_addr: SocketAddr = format!("0.0.0.0:{}", bind_port).parse().unwrap();
 
     tokio::select! {
-        _ = plugin.join() => {
+        _ = confplugin.join() => {
         // This will likely never be shown, if we got here our
         // parent process is exiting and not processing out log
         // messages anymore.
