@@ -10,12 +10,12 @@ use std::{fmt, path::PathBuf};
 use anyhow::{anyhow, Error};
 use cln_rpc::{
     model::{
-        DatastoreMode, DatastoreRequest, DatastoreResponse, ListdatastoreDatastore,
-        ListdatastoreRequest, ListdatastoreResponse,
+        DatastoreMode, DatastoreRequest, DatastoreResponse, DeldatastoreRequest,
+        DeldatastoreResponse, ListdatastoreDatastore, ListdatastoreRequest, ListdatastoreResponse,
     },
     ClnRpc, Request, Response,
 };
-use log::info;
+use log::debug;
 
 pub use crate::server::Server;
 
@@ -26,7 +26,7 @@ const HODLVOICE_DATASTORE_HTLC_EXPIRY: &str = "expiry";
 #[cfg(test)]
 mod test;
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Copy, Eq, PartialEq)]
 pub enum Hodlstate {
     Open,
     Settled,
@@ -146,7 +146,7 @@ async fn datastore_raw(
         }))
         .await
         .map_err(|e| anyhow!("Error calling datastore: {:?}", e))?;
-    info!("set {:?} to {}", key, string.unwrap());
+    debug!("datastore_raw: set {:?} to {}", key, string.unwrap());
     match datastore_request {
         Response::Datastore(info) => Ok(info),
         e => Err(anyhow!("Unexpected result in datastore: {:?}", e)),
@@ -254,7 +254,7 @@ pub async fn datastore_htlc_expiry(
 //     .await
 // }
 
-async fn listdatastore_raw(
+pub async fn listdatastore_raw(
     rpc_path: &PathBuf,
     key: Option<Vec<String>>,
 ) -> Result<ListdatastoreResponse, Error> {
@@ -288,15 +288,6 @@ pub async fn listdatastore_state(
             pay_hash
         )
     })?;
-    // .string
-    // .as_ref()
-    // .ok_or_else(|| {
-    //     anyhow!(
-    //         "None string for listdatastore_state with pay_hash: {}",
-    //         pay_hash
-    //     )
-    // })?;
-    // let state = Hodlstate::from_str(data)?;
     Ok(data.clone())
 }
 
@@ -329,6 +320,54 @@ pub async fn listdatastore_htlc_expiry(rpc_path: &PathBuf, pay_hash: String) -> 
         })?;
     let cltv = data.parse::<u32>()?;
     Ok(cltv)
+}
+
+async fn del_datastore_raw(
+    rpc_path: &PathBuf,
+    key: Vec<String>,
+) -> Result<DeldatastoreResponse, Error> {
+    let mut rpc = ClnRpc::new(&rpc_path).await?;
+    let del_datastore_request = rpc
+        .call(Request::DelDatastore(DeldatastoreRequest {
+            key,
+            generation: None,
+        }))
+        .await
+        .map_err(|e| anyhow!("Error calling DelDatastore: {:?}", e))?;
+    match del_datastore_request {
+        Response::DelDatastore(info) => Ok(info),
+        e => Err(anyhow!("Unexpected result in DelDatastore: {:?}", e)),
+    }
+}
+
+pub async fn del_datastore_state(
+    rpc_path: &PathBuf,
+    pay_hash: String,
+) -> Result<DeldatastoreResponse, Error> {
+    del_datastore_raw(
+        rpc_path,
+        vec![
+            HODLVOICE_PLUGIN_NAME.to_string(),
+            pay_hash,
+            HODLVOICE_DATASTORE_STATE.to_string(),
+        ],
+    )
+    .await
+}
+
+pub async fn del_datastore_htlc_expiry(
+    rpc_path: &PathBuf,
+    pay_hash: String,
+) -> Result<DeldatastoreResponse, Error> {
+    del_datastore_raw(
+        rpc_path,
+        vec![
+            HODLVOICE_PLUGIN_NAME.to_string(),
+            pay_hash.clone(),
+            HODLVOICE_DATASTORE_HTLC_EXPIRY.to_string(),
+        ],
+    )
+    .await
 }
 
 fn short_channel_id_to_string(scid: u64) -> String {

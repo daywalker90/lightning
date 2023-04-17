@@ -9,8 +9,6 @@ use cln_rpc::{
 
 use crate::PluginState;
 
-// pub const CLTV_HODL: u32 = 200;
-
 pub async fn listinvoices(
     rpc_path: &PathBuf,
     label: Option<String>,

@@ -2,14 +2,13 @@ use crate::pb::node_server::Node;
 use crate::{
     datastore_new_state, datastore_update_state_forced, listdatastore_htlc_expiry,
     listdatastore_state, pb, short_channel_id_to_string, Hodlstate,
-    HODLVOICE_DATASTORE_HTLC_EXPIRY, HODLVOICE_DATASTORE_STATE, HODLVOICE_PLUGIN_NAME,
 };
 use anyhow::Result;
 use cln_rpc::model::requests;
 use cln_rpc::primitives::{Amount, Routehint, Routehop, ShortChannelId};
 use cln_rpc::{ClnRpc, Request, Response};
 use lightning_invoice::{Invoice, InvoiceDescription, SignedRawInvoice};
-use log::{debug, info, trace};
+use log::{debug, trace};
 use std::collections::HashMap;
 use std::path::{Path, PathBuf};
 use std::str::FromStr;
@@ -859,70 +858,6 @@ impl Node for Server {
         Ok(tonic::Response::new(pb::HodlInvoiceLookupResponse {
             state: hodlstate.as_i32(),
             htlc_cltv,
-        }))
-    }
-
-    async fn del_hodl_invoice_state(
-        &self,
-        request: tonic::Request<pb::DelHodlInvoiceStateRequest>,
-    ) -> Result<tonic::Response<pb::DelHodlInvoiceStateResponse>, tonic::Status> {
-        let req = request.into_inner();
-        let req: pb::DelHodlInvoiceStateRequest = req.into();
-        debug!("Client asked for del_hodl_invoice_state");
-        trace!("del_hodl_invoice_state request: {:?}", req);
-
-        let pay_hash = hex::encode(req.payment_hash.clone());
-        let _expiry_result;
-        match listdatastore_htlc_expiry(&self.rpc_path, pay_hash.clone()).await {
-            Ok(_cltv) => {
-                _expiry_result = match self
-                    .del_datastore(tonic::Request::<pb::DeldatastoreRequest>::new(
-                        pb::DeldatastoreRequest {
-                            key: vec![
-                                HODLVOICE_PLUGIN_NAME.to_string(),
-                                pay_hash.clone(),
-                                HODLVOICE_DATASTORE_HTLC_EXPIRY.to_string(),
-                            ],
-                            generation: None,
-                        },
-                    ))
-                    .await
-                {
-                    Ok(st) => st,
-                    Err(e) => {
-                        return Err(Status::new(
-                            Code::Internal,
-                            format!("Unexpected result {:?} to method call del_datastore", e),
-                        ))
-                    }
-                }
-            }
-            Err(_e) => (),
-        }
-
-        let _state_result = match self
-            .del_datastore(tonic::Request::<pb::DeldatastoreRequest>::new(
-                pb::DeldatastoreRequest {
-                    key: vec![
-                        HODLVOICE_PLUGIN_NAME.to_string(),
-                        pay_hash.clone(),
-                        HODLVOICE_DATASTORE_STATE.to_string(),
-                    ],
-                    generation: None,
-                },
-            ))
-            .await
-        {
-            Ok(st) => st,
-            Err(e) => {
-                return Err(Status::new(
-                    Code::Internal,
-                    format!("Unexpected result {:?} to method call del_datastore", e),
-                ))
-            }
-        };
-        Ok(tonic::Response::new(pb::DelHodlInvoiceStateResponse {
-            success: true,
         }))
     }
 
