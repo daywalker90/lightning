@@ -669,7 +669,7 @@ message HodlInvoiceLookupResponse {
 		ACCEPTED = 3;
 	}
 	Hodlstate state = 1;
-	optional uint32 htlc_cltv = 2;
+	optional uint32 htlc_expiry = 2;
 }
 
 message ListdatastoreRequest {
