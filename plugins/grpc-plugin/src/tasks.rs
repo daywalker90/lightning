@@ -79,7 +79,7 @@ pub async fn clean_up(plugin: Plugin<PluginState>) -> Result<(), Error> {
                 .as_secs();
             let mut node_invoices = listinvoices(&rpc_path, None, None).await?.invoices;
             node_invoices.retain(|inv| {
-                inv.expires_at <= unix_now + 3_600
+                inv.expires_at + 3_600 <= unix_now
                     && match inv.status {
                         ListinvoicesInvoicesStatus::PAID | ListinvoicesInvoicesStatus::EXPIRED => {
                             true
@@ -131,6 +131,6 @@ pub async fn clean_up(plugin: Plugin<PluginState>) -> Result<(), Error> {
         //     );
         // }
         info!("cleaned up in {}ms", now.elapsed().as_millis());
-        time::sleep(Duration::from_secs(600)).await;
+        time::sleep(Duration::from_secs(3_600)).await;
     }
 }

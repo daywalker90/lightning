@@ -190,7 +190,7 @@ pub(crate) async fn htlc_handler(
                                 .unwrap()
                                 .as_secs();
 
-                            if invoice.expires_at <= now + 20
+                            if invoice.expires_at <= now + 60
                                 && hodlstate.is_valid_transition(&Hodlstate::Canceled)
                             {
                                 warn!(
