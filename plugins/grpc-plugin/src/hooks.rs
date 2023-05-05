@@ -151,8 +151,10 @@ pub(crate) async fn htlc_handler(
                 Some(ce) =>
                 // Amount::msat(&serde_json::from_str::<Amount>(ce).unwrap()), bugging trailing characters error
                 {
-                    let amt_str = ce.as_str().unwrap();
-                    amt_str[..amt_str.len() - 4].parse::<u64>().unwrap()
+                    // debug!("{:?}", htlc);
+                    // let amt_str = ce.as_str().unwrap();
+                    // amt_str[..amt_str.len() - 4].parse::<u64>().unwrap()
+                    ce.as_u64().unwrap()
                 }
                 None => {
                     warn!(

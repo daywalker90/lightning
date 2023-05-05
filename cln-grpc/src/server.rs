@@ -1,5 +1,8 @@
 use crate::pb::node_server::Node;
-use crate::pb;
+use crate::{
+    datastore_new_state, datastore_update_state_forced, listdatastore_htlc_expiry,
+    listdatastore_state, pb, Hodlstate,
+};
 use cln_rpc::{Request, Response, ClnRpc};
 use anyhow::Result;
 use std::path::{Path, PathBuf};
@@ -1721,5 +1724,240 @@ async fn stop(
     }
 
 }
+async fn hodl_invoice(
+        &self,
+        request: tonic::Request<pb::InvoiceRequest>,
+    ) -> Result<tonic::Response<pb::InvoiceResponse>, tonic::Status> {
+        let req = request.into_inner();
+        let req: requests::InvoiceRequest = req.into();
+        debug!("Client asked for hodlinvoice");
+        trace!("hodlinvoice request: {:?}", req);
+        let mut rpc = ClnRpc::new(&self.rpc_path)
+            .await
+            .map_err(|e| Status::new(Code::Internal, e.to_string()))?;
+        let result = rpc.call(Request::Invoice(req)).await.map_err(|e| {
+            Status::new(
+                Code::Unknown,
+                format!("Error calling method HodlInvoice: {:?}", e),
+            )
+        })?;
+        match result {
+            Response::Invoice(r) => {
+                trace!("hodlinvoice response: {:?}", r);
+                match datastore_new_state(
+                    &self.rpc_path,
+                    r.payment_hash.to_string(),
+                    Hodlstate::Open.to_string(),
+                )
+                .await
+                {
+                    Ok(_o) => (),
+                    Err(e) => {
+                        return Err(Status::new(
+                            Code::Internal,
+                            format!(
+                                "Unexpected result {:?} to method call datastore_new_state",
+                                e
+                            ),
+                        ))
+                    }
+                }
+                Ok(tonic::Response::new(r.into()))
+            }
+            r => Err(Status::new(
+                Code::Internal,
+                format!("Unexpected result {:?} to method call HodlInvoice", r),
+            )),
+        }
+    }
 
+    async fn hodl_invoice_settle(
+        &self,
+        request: tonic::Request<pb::HodlInvoiceSettleRequest>,
+    ) -> Result<tonic::Response<pb::HodlInvoiceSettleResponse>, tonic::Status> {
+        let req = request.into_inner();
+        let req: pb::HodlInvoiceSettleRequest = req.into();
+        debug!("Client asked for hodlinvoicesettle");
+        trace!("hodlinvoicesettle request: {:?}", req);
+        let pay_hash = hex::encode(req.payment_hash.clone());
+        let data = match listdatastore_state(&self.rpc_path, pay_hash.clone()).await {
+            Ok(st) => st,
+            Err(e) => {
+                return Err(Status::new(
+                    Code::Internal,
+                    format!(
+                        "Unexpected result {:?} to method call listdatastore_state",
+                        e
+                    ),
+                ))
+            }
+        };
+        let hodlstate = match Hodlstate::from_str(&data.string.unwrap()) {
+            Ok(hs) => hs,
+            Err(e) => {
+                return Err(Status::new(
+                    Code::Internal,
+                    format!(
+                        "Unexpected result {:?} to method call Hodlstate::from_str",
+                        e
+                    ),
+                ))
+            }
+        };
+        match hodlstate {
+            Hodlstate::Accepted => {
+                let result = datastore_update_state_forced(
+                    &self.rpc_path,
+                    pay_hash,
+                    Hodlstate::Settled.to_string(),
+                )
+                .await;
+                match result {
+                    Ok(_r) => Ok(tonic::Response::new(pb::HodlInvoiceSettleResponse {
+                        state: Hodlstate::Settled.as_i32(),
+                    })),
+                    Err(e) => Err(Status::new(
+                        Code::Internal,
+                        format!(
+                            "Unexpected result {:?} to method call datastore_update_state",
+                            e
+                        ),
+                    )),
+                }
+            }
+            _ => {
+                return Err(Status::new(
+                    Code::Internal,
+                    format!(
+                        "Hodl-Invoice is in wrong state: `{}`. Payment_hash: {}",
+                        hodlstate.to_string(),
+                        pay_hash
+                    ),
+                ))
+            }
+        }
+    }
+
+    async fn hodl_invoice_cancel(
+        &self,
+        request: tonic::Request<pb::HodlInvoiceCancelRequest>,
+    ) -> Result<tonic::Response<pb::HodlInvoiceCancelResponse>, tonic::Status> {
+        let req = request.into_inner();
+        let req: pb::HodlInvoiceCancelRequest = req.into();
+        debug!("Client asked for hodlinvoiceCancel");
+        trace!("hodlinvoiceCancel request: {:?}", req);
+        let pay_hash = hex::encode(req.payment_hash.clone());
+        let data = match listdatastore_state(&self.rpc_path, pay_hash.clone()).await {
+            Ok(st) => st,
+            Err(e) => {
+                return Err(Status::new(
+                    Code::Internal,
+                    format!(
+                        "Unexpected result {:?} to method call listdatastore_state",
+                        e
+                    ),
+                ))
+            }
+        };
+        let hodlstate = match Hodlstate::from_str(&data.string.unwrap()) {
+            Ok(hs) => hs,
+            Err(e) => {
+                return Err(Status::new(
+                    Code::Internal,
+                    format!(
+                        "Unexpected result {:?} to method call Hodlstate::from_str",
+                        e
+                    ),
+                ))
+            }
+        };
+        match hodlstate {
+            Hodlstate::Open | Hodlstate::Accepted => {
+                let result = datastore_update_state_forced(
+                    &self.rpc_path,
+                    pay_hash,
+                    Hodlstate::Canceled.to_string(),
+                )
+                .await;
+                match result {
+                    Ok(_r) => Ok(tonic::Response::new(pb::HodlInvoiceCancelResponse {
+                        state: Hodlstate::Canceled.as_i32(),
+                    })),
+                    Err(e) => Err(Status::new(
+                        Code::Internal,
+                        format!(
+                            "Unexpected result {:?} to method call datastore_update_state",
+                            e
+                        ),
+                    )),
+                }
+            }
+            Hodlstate::Canceled | Hodlstate::Settled => {
+                return Err(Status::new(
+                    Code::Internal,
+                    format!(
+                        "Hodl-Invoice is in wrong state: `{}`. Payment_hash: {}",
+                        hodlstate.to_string(),
+                        pay_hash
+                    ),
+                ))
+            }
+        }
+    }
+
+    async fn hodl_invoice_lookup(
+        &self,
+        request: tonic::Request<pb::HodlInvoiceLookupRequest>,
+    ) -> Result<tonic::Response<pb::HodlInvoiceLookupResponse>, tonic::Status> {
+        let req = request.into_inner();
+        let req: pb::HodlInvoiceLookupRequest = req.into();
+        debug!("Client asked for hodlinvoiceLookup");
+        trace!("hodlinvoiceLookup request: {:?}", req);
+        let pay_hash = hex::encode(req.payment_hash.clone());
+        let data = match listdatastore_state(&self.rpc_path, pay_hash.clone()).await {
+            Ok(st) => st,
+            Err(e) => {
+                return Err(Status::new(
+                    Code::Internal,
+                    format!(
+                        "Unexpected result {:?} to method call listdatastore_state",
+                        e
+                    ),
+                ))
+            }
+        };
+        let hodlstate = match Hodlstate::from_str(&data.string.unwrap()) {
+            Ok(hs) => hs,
+            Err(e) => {
+                return Err(Status::new(
+                    Code::Internal,
+                    format!(
+                        "Unexpected result {:?} to method call Hodlstate::from_str",
+                        e
+                    ),
+                ))
+            }
+        };
+        let htlc_expiry = match hodlstate {
+            Hodlstate::Accepted => {
+                match listdatastore_htlc_expiry(&self.rpc_path, pay_hash.clone()).await {
+                    Ok(cltv) => Some(cltv),
+                    Err(e) => {
+                        return Err(Status::new(
+                            Code::Internal,
+                            format!(
+                                "Unexpected result {:?} to method call listdatastore_htlc_expiry",
+                                e
+                            ),
+                        ))
+                    }
+                }
+            }
+            _ => None,
+        };
+        Ok(tonic::Response::new(pb::HodlInvoiceLookupResponse {
+            state: hodlstate.as_i32(),
+            htlc_expiry,
+        }))
+    }
 }
