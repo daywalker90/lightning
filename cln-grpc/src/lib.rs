@@ -370,9 +370,9 @@ pub async fn del_datastore_htlc_expiry(
     .await
 }
 
-// fn short_channel_id_to_string(scid: u64) -> String {
-//     let block_height = scid >> 40;
-//     let tx_index = (scid >> 16) & 0xFFFFFF;
-//     let output_index = scid & 0xFFFF;
-//     format!("{}x{}x{}", block_height, tx_index, output_index)
-// }
+fn short_channel_id_to_string(scid: u64) -> String {
+    let block_height = scid >> 40;
+    let tx_index = (scid >> 16) & 0xFFFFFF;
+    let output_index = scid & 0xFFFF;
+    format!("{}x{}x{}", block_height, tx_index, output_index)
+}
