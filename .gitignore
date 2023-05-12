@@ -83,3 +83,27 @@ focal/
 jammy/
 release/
 .vscode/
+
+# hodlvoice filter
+.github/
+bitcoin/
+ccan/
+channeld/
+cli/
+closingd/
+common/
+connectd/
+contrib/
+db/
+devtools/
+doc/
+external/
+gossipd/
+hsmd/
+lightningd/
+onchaind/
+openingd/
+tests/
+tools/
+wallet/
+wire/
