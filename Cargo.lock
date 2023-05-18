@@ -222,7 +222,7 @@ dependencies = [
 
 [[package]]
 name = "cln-grpc-hodl-plugin"
-version = "0.1.1-hodl-0.1.1"
+version = "0.1.1-hodl-0.1.2"
 dependencies = [
  "anyhow",
  "cln-grpc",
