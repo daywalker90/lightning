@@ -76,45 +76,6 @@ impl Hodlstate {
             Hodlstate::Accepted => true,
         }
     }
-    // pub async fn accepting(&self) -> Result<(), Error> {
-    //     match *self {
-    //         Hodlstate::Open => Ok(()),
-    //         _ => Err(anyhow!(
-    //             "illegal state transition for accepting: {}",
-    //             *self.to_string()
-    //         )),
-    //     }
-    // }
-
-    // pub async fn unaccepting(&self) -> Result<(), Error> {
-    //     match *self {
-    //         Hodlstate::Accepted => Ok(()),
-    //         _ => Err(anyhow!(
-    //             "illegal state transition for unaccepting: {}",
-    //             *self.to_string()
-    //         )),
-    //     }
-    // }
-
-    // pub async fn canceling(&self) -> Result<(), Error> {
-    //     match *self {
-    //         Hodlstate::Open | Hodlstate::Accepted => Ok(()),
-    //         _ => Err(anyhow!(
-    //             "illegal state transition for canceling: {}",
-    //             *self.to_string()
-    //         )),
-    //     }
-    // }
-
-    // pub async fn settling(&self) -> Result<(), Error> {
-    //     match *self {
-    //         Hodlstate::Accepted => Ok(()),
-    //         _ => Err(anyhow!(
-    //             "illegal state transition for settling: {}",
-    //             *self.to_string()
-    //         )),
-    //     }
-    // }
 }
 impl fmt::Display for Hodlstate {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
