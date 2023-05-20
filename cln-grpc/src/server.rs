@@ -1823,7 +1823,7 @@ async fn hodl_invoice(
                 )
                 .await;
                 match result {
-                    Ok(_r) => 
+                    Ok(_r) =>
                         {
                             let now = Instant::now();
                             loop {
@@ -1853,12 +1853,12 @@ async fn hodl_invoice(
                                                         format!("hodl_invoice_settle: Invoice expired while trying to settle!"),
                                                     ))
                                                 },
-                                                _ => time::sleep(Duration::from_secs(1)).await,
+                                                _ => (),
                                             }
-                                            None => time::sleep(Duration::from_secs(1)).await,
+                                            None => (),
                                         }
                                     }
-                                    _ => time::sleep(Duration::from_secs(1)).await,
+                                    _ => (),
                                 }
                                 if now.elapsed().as_secs() > 120 {
                                     return Err(Status::new(
@@ -1866,6 +1866,7 @@ async fn hodl_invoice(
                                         format!("hodl_invoice_settle: Timed out before settlement could be confirmed"),
                                     ))
                                 }
+                                time::sleep(Duration::from_secs(1)).await
                             }
                         },
                     Err(e) => Err(Status::new(
@@ -1935,7 +1936,7 @@ async fn hodl_invoice(
                 )
                 .await;
                 match result {
-                    Ok(_r) => 
+                    Ok(_r) =>
                         {
                             let now = Instant::now();
                             loop {
@@ -1951,27 +1952,27 @@ async fn hodl_invoice(
                                 match channels{
                                     Response::ListPeerChannels(c) => {
                                         match c.channels {
-                                            Some(chans) => 
+                                            Some(chans) =>
                                                 for chan in chans {
                                                     match chan.htlcs{
-                                                        Some(htlcs) => 
+                                                        Some(htlcs) =>
                                                             for htlc in htlcs {
                                                                 match htlc.payment_hash {
-                                                                    Some(ph) => 
+                                                                    Some(ph) =>
                                                                         if ph.to_string() == pay_hash {
                                                                             all_cancelled = false;
                                                                         },
-                                                                    None => time::sleep(Duration::from_secs(1)).await,
+                                                                    None => (),
                                                                 }
                                                             },
-                                                        None => time::sleep(Duration::from_secs(1)).await,
+                                                        None => (),
                                                     }
-                                                    
+
                                                 }
-                                            None => time::sleep(Duration::from_secs(1)).await,
+                                            None => (),
                                         }
                                     }
-                                    _ => time::sleep(Duration::from_secs(1)).await,
+                                    _ => (),
                                 }
                                 if all_cancelled {
                                     return Ok(tonic::Response::new(pb::HodlInvoiceCancelResponse {
@@ -1981,9 +1982,10 @@ async fn hodl_invoice(
                                 if now.elapsed().as_secs() > 120 {
                                     return Err(Status::new(
                                         Code::Internal,
-                                        format!("hodl_invoice_settle: Timed out before settlement could be confirmed"),
+                                        format!("hodl_invoice_cancel: Timed out before cancellation could be confirmed"),
                                     ))
                                 }
+                                time::sleep(Duration::from_secs(1)).await
                             }
                         },
                     Err(e) => Err(Status::new(
