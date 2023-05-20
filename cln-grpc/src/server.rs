@@ -1786,9 +1786,6 @@ async fn hodl_invoice(
         let req: pb::HodlInvoiceSettleRequest = req.into();
         debug!("Client asked for hodlinvoicesettle");
         trace!("hodlinvoicesettle request: {:?}", req);
-        let mut rpc = ClnRpc::new(&self.rpc_path)
-            .await
-            .map_err(|e| Status::new(Code::Internal, e.to_string()))?;
         let pay_hash = hex::encode(req.payment_hash.clone());
         let data = match listdatastore_state(&self.rpc_path, pay_hash.clone()).await {
             Ok(st) => st,
@@ -1823,52 +1820,9 @@ async fn hodl_invoice(
                 )
                 .await;
                 match result {
-                    Ok(_r) =>
-                        {
-                            let now = Instant::now();
-                            loop {
-                                let invoice = rpc.call(Request::ListInvoices(ListinvoicesRequest{
-                                    label: None,
-                                    invstring: None,
-                                    payment_hash: Some(pay_hash.clone()),
-                                    offer_id: None,
-                                })).await.map_err(|e| {
-                                    Status::new(
-                                        Code::Unknown,
-                                        format!("Error calling method ListInvoices while waiting for hodl invoice to settle: {:?}", e),
-                                    )
-                                })?;
-                                match invoice{
-                                    Response::ListInvoices(i) => {
-                                        match i.invoices.first() {
-                                            Some(inv) => match inv.status{
-                                                ListinvoicesInvoicesStatus::PAID => {
-                                                    return Ok(tonic::Response::new(pb::HodlInvoiceSettleResponse {
-                                                        state: Hodlstate::Settled.as_i32(),
-                                                    }))
-                                                },
-                                                ListinvoicesInvoicesStatus::EXPIRED => {
-                                                    return Err(Status::new(
-                                                        Code::Internal,
-                                                        format!("hodl_invoice_settle: Invoice expired while trying to settle!"),
-                                                    ))
-                                                },
-                                                _ => (),
-                                            }
-                                            None => (),
-                                        }
-                                    }
-                                    _ => (),
-                                }
-                                if now.elapsed().as_secs() > 120 {
-                                    return Err(Status::new(
-                                        Code::Internal,
-                                        format!("hodl_invoice_settle: Timed out before settlement could be confirmed"),
-                                    ))
-                                }
-                                time::sleep(Duration::from_secs(1)).await
-                            }
-                        },
+                    Ok(_r) => Ok(tonic::Response::new(pb::HodlInvoiceSettleResponse {
+                        state: Hodlstate::Settled.as_i32(),
+                    })),
                     Err(e) => Err(Status::new(
                         Code::Internal,
                         format!(
@@ -1899,9 +1853,6 @@ async fn hodl_invoice(
         let req: pb::HodlInvoiceCancelRequest = req.into();
         debug!("Client asked for hodlinvoiceCancel");
         trace!("hodlinvoiceCancel request: {:?}", req);
-        let mut rpc = ClnRpc::new(&self.rpc_path)
-            .await
-            .map_err(|e| Status::new(Code::Internal, e.to_string()))?;
         let pay_hash = hex::encode(req.payment_hash.clone());
         let data = match listdatastore_state(&self.rpc_path, pay_hash.clone()).await {
             Ok(st) => st,
@@ -1936,58 +1887,9 @@ async fn hodl_invoice(
                 )
                 .await;
                 match result {
-                    Ok(_r) =>
-                        {
-                            let now = Instant::now();
-                            loop {
-                                let mut all_cancelled = true;
-                                let channels = rpc.call(Request::ListPeerChannels(ListpeerchannelsRequest{
-                                    id: None,
-                                })).await.map_err(|e| {
-                                    Status::new(
-                                        Code::Unknown,
-                                        format!("Error calling method ListPeerChannels while waiting for hodl invoice to cancel: {:?}", e),
-                                    )
-                                })?;
-                                match channels{
-                                    Response::ListPeerChannels(c) => {
-                                        match c.channels {
-                                            Some(chans) =>
-                                                for chan in chans {
-                                                    match chan.htlcs{
-                                                        Some(htlcs) =>
-                                                            for htlc in htlcs {
-                                                                match htlc.payment_hash {
-                                                                    Some(ph) =>
-                                                                        if ph.to_string() == pay_hash {
-                                                                            all_cancelled = false;
-                                                                        },
-                                                                    None => (),
-                                                                }
-                                                            },
-                                                        None => (),
-                                                    }
-
-                                                }
-                                            None => (),
-                                        }
-                                    }
-                                    _ => (),
-                                }
-                                if all_cancelled {
-                                    return Ok(tonic::Response::new(pb::HodlInvoiceCancelResponse {
-                                        state: Hodlstate::Canceled.as_i32(),
-                                    }))
-                                }
-                                if now.elapsed().as_secs() > 120 {
-                                    return Err(Status::new(
-                                        Code::Internal,
-                                        format!("hodl_invoice_cancel: Timed out before cancellation could be confirmed"),
-                                    ))
-                                }
-                                time::sleep(Duration::from_secs(1)).await
-                            }
-                        },
+                    Ok(_r) => Ok(tonic::Response::new(pb::HodlInvoiceCancelResponse {
+                        state: Hodlstate::Canceled.as_i32(),
+                    })),
                     Err(e) => Err(Status::new(
                         Code::Internal,
                         format!(
@@ -2018,6 +1920,9 @@ async fn hodl_invoice(
         let req: pb::HodlInvoiceLookupRequest = req.into();
         debug!("Client asked for hodlinvoiceLookup");
         trace!("hodlinvoiceLookup request: {:?}", req);
+        let mut rpc = ClnRpc::new(&self.rpc_path)
+            .await
+            .map_err(|e| Status::new(Code::Internal, e.to_string()))?;
         let pay_hash = hex::encode(req.payment_hash.clone());
         let data = match listdatastore_state(&self.rpc_path, pay_hash.clone()).await {
             Ok(st) => st,
@@ -2043,9 +1948,11 @@ async fn hodl_invoice(
                 ))
             }
         };
-        let htlc_expiry = match hodlstate {
+        let mut htlc_expiry = None;
+        match hodlstate{
+            Hodlstate::Open => (),
             Hodlstate::Accepted => {
-                match listdatastore_htlc_expiry(&self.rpc_path, pay_hash.clone()).await {
+                htlc_expiry = match listdatastore_htlc_expiry(&self.rpc_path, pay_hash.clone()).await {
                     Ok(cltv) => Some(cltv),
                     Err(e) => {
                         return Err(Status::new(
@@ -2057,9 +1964,106 @@ async fn hodl_invoice(
                         ))
                     }
                 }
-            }
-            _ => None,
-        };
+            },
+            Hodlstate::Canceled => {
+                let now = Instant::now();
+                loop {
+                    let mut all_cancelled = true;
+                    let channels = rpc.call(Request::ListPeerChannels(ListpeerchannelsRequest{
+                        id: None,
+                    })).await.map_err(|e| {
+                        Status::new(
+                            Code::Unknown,
+                            format!(
+                                "Error calling method ListPeerChannels while waiting to double check Canceled state in hodl_invoice_lookup: {:?}",
+                                e
+                            ),
+                        )
+                    })?;
+                    match channels{
+                        Response::ListPeerChannels(c) => {
+                            match c.channels {
+                                Some(chans) =>
+                                    for chan in chans {
+                                        match chan.htlcs{
+                                            Some(htlcs) =>
+                                                for htlc in htlcs {
+                                                    match htlc.payment_hash {
+                                                        Some(ph) =>
+                                                            if ph.to_string() == pay_hash {
+                                                                all_cancelled = false;
+                                                            },
+                                                        None => (),
+                                                    }
+                                                },
+                                            None => (),
+                                        }
+
+                                    }
+                                None => (),
+                            }
+                        }
+                        _ => (),
+                    }
+                    if all_cancelled {
+                        break;
+                    }
+                    if now.elapsed().as_secs() > 20 {
+                        return Err(Status::new(
+                            Code::Internal,
+                            format!("hodl_invoice_lookup: Timed out before cancellation could be confirmed"),
+                        ))
+                    }
+                    time::sleep(Duration::from_secs(1)).await
+                }
+            },
+            Hodlstate::Settled => {
+                let now = Instant::now();
+                loop {
+                    let invoice = rpc.call(Request::ListInvoices(ListinvoicesRequest{
+                        label: None,
+                        invstring: None,
+                        payment_hash: Some(pay_hash.clone()),
+                        offer_id: None,
+                    })).await.map_err(|e| {
+                        Status::new(
+                            Code::Unknown,
+                            format!(
+                                "Error calling method ListInvoices while waiting to double check Settled state in hodl_invoice_lookup: {:?}",
+                                e
+                            ),
+                        )
+                    })?;
+                    match invoice{
+                        Response::ListInvoices(i) => {
+                            match i.invoices.first() {
+                                Some(inv) => match inv.status{
+                                    ListinvoicesInvoicesStatus::PAID => {
+                                        break;
+                                    },
+                                    ListinvoicesInvoicesStatus::EXPIRED => {
+                                        return Err(Status::new(
+                                            Code::Internal,
+                                            format!("hodl_invoice_lookup: Invoice expired while trying to settle!"),
+                                        ))
+                                    },
+                                    _ => (),
+                                }
+                                None => (),
+                            }
+                        }
+                        _ => (),
+                    }
+                    if now.elapsed().as_secs() > 20 {
+                        return Err(Status::new(
+                            Code::Internal,
+                            format!("hodl_invoice_lookup: Timed out before settlement could be confirmed"),
+                        ))
+                    }
+                    time::sleep(Duration::from_secs(1)).await
+                }
+            },
+        }
         Ok(tonic::Response::new(pb::HodlInvoiceLookupResponse {
             state: hodlstate.as_i32(),
             htlc_expiry,
