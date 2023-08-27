@@ -1,4 +1,4 @@
-# GRPC plugin for Core Lightning
+# RPC/GRPC plugin for Core Lightning
 
 This plugin exposes the Holdinvoice related JSON-RPC interface through grpc over the
 network in addition to the methods over rpc. It listens on a configurable port, authenticates clients
