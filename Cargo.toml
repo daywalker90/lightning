@@ -4,7 +4,7 @@ name = "holdinvoice-grpc"
 version = "0.2.0"
 
 [[bin]]
-name = "cln-grpc-hodl"
+name = "cln-grpc-hold"
 path = "src/main.rs"
 
 [dependencies]

@@ -1,10 +1,10 @@
 #!/usr/bin/python
 
-from proto import primitives_pb2 as primitives__pb2
-from proto import node_pb2_grpc as nodestub
-from proto import node_pb2 as noderpc
-from proto import hold_pb2_grpc as holdstub
-from proto import hold_pb2 as holdrpc
+import primitives_pb2 as primitives__pb2
+import node_pb2_grpc as nodestub
+import node_pb2 as noderpc
+import hold_pb2_grpc as holdstub
+import hold_pb2 as holdrpc
 import grpc
 from pyln.client import LightningRpc
 import unittest
