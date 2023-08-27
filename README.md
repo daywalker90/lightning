@@ -1,7 +1,7 @@
 # GRPC plugin for Core Lightning
 
-This plugin exposes the JSON-RPC interface through grpc over the
-network. It listens on a configurable port, authenticates clients
+This plugin exposes the Holdinvoice related JSON-RPC interface through grpc over the
+network in addition to the methods over rpc. It listens on a configurable port, authenticates clients
 using mTLS certificates, and will forward any request to the JSON-RPC
 interface, performing translations from protobuf to JSON and back.
 
@@ -9,7 +9,7 @@ interface, performing translations from protobuf to JSON and back.
 ## Getting started
 
 The plugin only runs when `lightningd` is configured with the option
-`--grpc-port`. Upon starting the plugin generates a number of files,
+`--grpc-hold-port`. Upon starting the plugin generates a number of files,
 if they don't already exist:
 
  - `ca.pem` and `ca-key.pem`: These are the certificate and private
@@ -49,8 +49,8 @@ Next we generate the bindings in the current directory:
 
 ```bash
 python -m grpc_tools.protoc \
-  -I path/to/cln-grpc/proto \
-  path/to/cln-grpc/proto/node.proto \
+  -I path/to/proto \
+  path/to/proto/hold.proto \
   --python_out=. \
   --grpc_python_out=. \
   --experimental_allow_proto3_optional
@@ -58,9 +58,9 @@ python -m grpc_tools.protoc \
 
 This will generate two files in the current directory:
 
- - `node_pb2.py`: the description of the protobuf messages we'll be
+ - `hold_pb2.py`: the description of the protobuf messages we'll be
    exchanging with the server.
- - `node_pb2_grpc.py`: the service and method stubs representing the
+ - `hold_pb2_grpc.py`: the service and method stubs representing the
    server-side methods as local objects and associated methods.
    
 And finally we can use the generated stubs and mTLS identity to
@@ -68,8 +68,8 @@ connect to the node:
 
 ```python
 from pathlib import Path
-from node_pb2_grpc import NodeStub
-import node_pb2
+from hold_pb2_grpc import HoldStub
+import hold_pb2
 
 p = Path(".")
 cert_path = p / "client.pem"
@@ -87,9 +87,9 @@ channel = grpc.secure_channel(
 	creds,
 	options=(('grpc.ssl_target_name_override', 'cln'),)
 )
-stub = NodeStub(channel)
+stub = HoldStub(channel)
 
-print(stub.Getinfo(node_pb2.GetinfoRequest()))
+print(stub.HoldInvoiceLookup(hold_pb2.HoldInvoiceLookupRequest(payment_hash=payment_hash)))
 ```
 
 In this example we first local the client identity, as well as the CA
@@ -102,9 +102,9 @@ required because the plugin does not know the domain under which it
 will be reachable, and will therefore use `cln` as a standin. See
 custom certificate generation for how this could be changed.
 
-We then use the channel to instantiate the `NodeStub` representing the
-service and its methods, so we can finally call the `Getinfo` method
-with default arguments.
+We then use the channel to instantiate the `HoldStub` representing the
+service and its methods, so we can finally call the `HoldInvoiceLookup` method
+with default arguments (need to provide payment_hash).
 
 ## Generating custom certificates
 
