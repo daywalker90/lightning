@@ -5,7 +5,7 @@ use std::path::Path;
 
 use tokio::fs;
 
-use crate::PluginState;
+use crate::model::PluginState;
 
 #[derive(Clone, Debug)]
 pub struct Config {

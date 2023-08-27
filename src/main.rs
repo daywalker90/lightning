@@ -1,54 +1,45 @@
+#![recursion_limit = "1024"]
+use crate::config::Config;
+use crate::pb::hold_server::HoldServer;
+use crate::util::make_rpc_path;
+use crate::util::Holdstate;
 use anyhow::{anyhow, Context, Result};
-use cln_grpc::pb::node_server::NodeServer;
-use cln_grpc::Hodlstate;
+use cln_plugin::Plugin;
 use cln_plugin::{options, Builder};
-use cln_rpc::model::ListinvoicesInvoices;
 use log::{debug, info, warn};
+use model::PluginState;
 use parking_lot::Mutex;
 use std::collections::BTreeMap;
 use std::net::SocketAddr;
-use std::path::{Path, PathBuf};
+use std::path::PathBuf;
 use std::sync::Arc;
 
+use crate::hold::{hold_invoice, hold_invoice_cancel, hold_invoice_lookup, hold_invoice_settle};
+
 mod config;
+mod hold;
 mod hooks;
+mod model;
 mod tasks;
 mod tls;
 mod util;
 
-#[derive(Clone, Debug, Copy)]
-pub struct Hodlupdate {
-    pub state: Hodlstate,
-    pub generation: u64,
-}
-#[derive(Clone, Debug)]
-pub struct PluginState {
-    pub config: Arc<Mutex<config::Config>>,
-    pub blockheight: Arc<Mutex<u32>>,
-    pub invoice_amts: Arc<Mutex<BTreeMap<String, u64>>>,
-    pub states: Arc<tokio::sync::Mutex<BTreeMap<String, Hodlupdate>>>,
-    pub invoices: Arc<Mutex<BTreeMap<String, ListinvoicesInvoices>>>,
-    rpc_path: PathBuf,
-    identity: tls::Identity,
-    ca_cert: Vec<u8>,
-}
+pub mod pb;
+mod server;
 
 #[tokio::main(flavor = "current_thread")]
 async fn main() -> Result<()> {
     debug!("Starting grpc plugin");
     std::env::set_var("CLN_PLUGIN_LOG", "debug");
-    let path = Path::new("lightning-rpc");
+    // let path = Path::new("lightning-rpc");
 
     let directory = std::env::current_dir()?;
     let (identity, ca_cert) = tls::init(&directory)?;
 
     let state = PluginState {
-        config: Arc::new(Mutex::new(config::Config::new())),
+        config: Arc::new(Mutex::new(Config::new())),
         blockheight: Arc::new(Mutex::new(u32::default())),
-        invoice_amts: Arc::new(Mutex::new(BTreeMap::new())),
-        states: Arc::new(tokio::sync::Mutex::new(BTreeMap::new())),
-        invoices: Arc::new(Mutex::new(BTreeMap::new())),
-        rpc_path: path.into(),
+        holdinvoices: Arc::new(tokio::sync::Mutex::new(BTreeMap::new())),
         identity,
         ca_cert,
     };
@@ -59,6 +50,26 @@ async fn main() -> Result<()> {
             options::Value::Integer(-1),
             "Which port should the grpc plugin listen for incoming connections?",
         ))
+        .rpcmethod(
+            "holdinvoice",
+            "create a new invoice and hold it",
+            hold_invoice,
+        )
+        .rpcmethod(
+            "holdinvoicesettle",
+            "settle htlcs to corresponding holdinvoice",
+            hold_invoice_settle,
+        )
+        .rpcmethod(
+            "holdinvoicecancel",
+            "cancel htlcs to corresponding holdinvoice",
+            hold_invoice_cancel,
+        )
+        .rpcmethod(
+            "holdinvoicelookup",
+            "lookup hold status of holdinvoice",
+            hold_invoice_lookup,
+        )
         .hook("htlc_accepted", hooks::htlc_handler)
         .subscribe("block_added", hooks::block_added)
         .configure()
@@ -92,18 +103,14 @@ async fn main() -> Result<()> {
         Ok(p) => {
             info!("starting lookup_state task");
             confplugin = p;
-            let lookupclone = confplugin.clone();
-            tokio::spawn(async move {
-                match tasks::lookup_state(lookupclone).await {
-                    Ok(()) => (),
-                    Err(e) => warn!("Error in lookup_state thread: {}", e.to_string()),
-                };
-            });
             let cleanupclone = confplugin.clone();
             tokio::spawn(async move {
-                match tasks::clean_up(cleanupclone).await {
+                match tasks::autoclean_holdinvoice_db(cleanupclone).await {
                     Ok(()) => (),
-                    Err(e) => warn!("Error in clean_up thread: {}", e.to_string()),
+                    Err(e) => warn!(
+                        "Error in autoclean_holdinvoice_db thread: {}",
+                        e.to_string()
+                    ),
                 };
             });
         }
@@ -111,6 +118,7 @@ async fn main() -> Result<()> {
     }
 
     let bind_addr: SocketAddr = format!("0.0.0.0:{}", bind_port).parse().unwrap();
+    let rpc_path = make_rpc_path(confplugin.clone());
 
     tokio::select! {
         _ = confplugin.join() => {
@@ -119,16 +127,20 @@ async fn main() -> Result<()> {
         // messages anymore.
             debug!("Plugin loop terminated")
         }
-        e = run_interface(bind_addr, state) => {
+        e = run_interface(bind_addr,rpc_path, confplugin.clone()) => {
             warn!("Error running grpc interface: {:?}", e)
         }
     }
     Ok(())
 }
 
-async fn run_interface(bind_addr: SocketAddr, state: PluginState) -> Result<()> {
-    let identity = state.identity.to_tonic_identity();
-    let ca_cert = tonic::transport::Certificate::from_pem(state.ca_cert);
+async fn run_interface(
+    bind_addr: SocketAddr,
+    rpc_path: PathBuf,
+    plugin: Plugin<PluginState>,
+) -> Result<()> {
+    let identity = plugin.state().identity.to_tonic_identity();
+    let ca_cert = tonic::transport::Certificate::from_pem(plugin.state().ca_cert.clone());
 
     let tls = tonic::transport::ServerTlsConfig::new()
         .identity(identity)
@@ -137,8 +149,8 @@ async fn run_interface(bind_addr: SocketAddr, state: PluginState) -> Result<()> 
     let server = tonic::transport::Server::builder()
         .tls_config(tls)
         .context("configuring tls")?
-        .add_service(NodeServer::new(
-            cln_grpc::Server::new(&state.rpc_path)
+        .add_service(HoldServer::new(
+            server::Server::new(&rpc_path, plugin.clone())
                 .await
                 .context("creating NodeServer instance")?,
         ))
@@ -146,7 +158,7 @@ async fn run_interface(bind_addr: SocketAddr, state: PluginState) -> Result<()> 
 
     debug!(
         "Connecting to {:?} and serving grpc on {:?}",
-        &state.rpc_path, &bind_addr
+        rpc_path, &bind_addr
     );
 
     server.await.context("serving requests")?;

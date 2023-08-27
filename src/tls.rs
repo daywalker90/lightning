@@ -1,4 +1,4 @@
-//! Utilities to manage TLS certificates.
+// Utilities to manage TLS certificates.
 use anyhow::{Context, Result};
 use log::debug;
 use rcgen::{Certificate, KeyPair};
@@ -6,7 +6,7 @@ use std::path::Path;
 
 /// Just a wrapper around a certificate and an associated keypair.
 #[derive(Clone, Debug)]
-pub(crate) struct Identity {
+pub struct Identity {
     key: Vec<u8>,
     certificate: Vec<u8>,
 }
@@ -45,7 +45,7 @@ impl Identity {
 /// might add runes, making the distinction more important.
 ///
 /// Returns the server identity and the root CA certificate.
-pub(crate) fn init(directory: &Path) -> Result<(Identity, Vec<u8>)> {
+pub fn init(directory: &Path) -> Result<(Identity, Vec<u8>)> {
     let ca = generate_or_load_identity("cln Root CA", directory, "ca", None)?;
     let server = generate_or_load_identity("cln grpc Server", directory, "server", Some(&ca))?;
     let _client = generate_or_load_identity("cln grpc Client", directory, "client", Some(&ca))?;
@@ -79,8 +79,8 @@ fn generate_or_load_identity(
         perms.set_mode(0o600);
         std::fs::set_permissions(&key_path, perms)?;
 
-	// Only after changing the permissions we can write the
-	// private key
+        // Only after changing the permissions we can write the
+        // private key
         file.write_all(keypair.serialize_pem().as_bytes())?;
         drop(file);
 
