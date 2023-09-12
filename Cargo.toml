@@ -1,7 +1,7 @@
 [package]
 edition = "2021"
 name = "holdinvoice-grpc"
-version = "0.2.0"
+version = "0.2.1"
 
 [[bin]]
 name = "cln-grpc-hold"
@@ -17,9 +17,9 @@ parking_lot = "0.12"
 rand = "0.8"
 rcgen = { version = "0.11", features = ["pem", "x509-parser"] }
 
-cln-grpc = "0.1.3"
-cln-plugin = "0.1.4"
-cln-rpc = "0.1.3"
+cln-grpc = "0.1.4"
+cln-plugin = "0.1.5"
+cln-rpc = "0.1.4"
 
 hex = "0.4.3"
 bitcoin = { version = "0.29", features = [ "serde" ] }

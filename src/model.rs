@@ -6,7 +6,7 @@ use std::{
 use crate::{config::Config, pb::Amount, Holdstate};
 use crate::{pb, tls::Identity};
 use bitcoin::hashes::sha256::Hash as Sha256;
-use cln_rpc::{model::ListinvoicesInvoices, primitives::Secret};
+use cln_rpc::{model::responses::ListinvoicesInvoices, primitives::Secret};
 use parking_lot::Mutex;
 use serde::{Deserialize, Serialize};
 
