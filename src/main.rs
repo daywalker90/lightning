@@ -30,7 +30,7 @@ mod server;
 #[tokio::main(flavor = "current_thread")]
 async fn main() -> Result<()> {
     debug!("Starting grpc plugin");
-    std::env::set_var("CLN_PLUGIN_LOG", "debug");
+    std::env::set_var("CLN_PLUGIN_LOG", "cln_plugin=info,cln_rpc=info,debug");
     // let path = Path::new("lightning-rpc");
 
     let directory = std::env::current_dir()?;
