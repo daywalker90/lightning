@@ -172,15 +172,15 @@ impl TryFrom<Response> for HoldInvoiceResponse {
 impl From<HoldInvoiceResponse> for pb::HoldInvoiceResponse {
     fn from(c: HoldInvoiceResponse) -> Self {
         Self {
-            bolt11: c.bolt11,                                 // Rule #2 for type string
-            payment_hash: c.payment_hash.to_vec(),            // Rule #2 for type hash
-            payment_secret: c.payment_secret.to_vec(),        // Rule #2 for type secret
-            expires_at: c.expires_at,                         // Rule #2 for type u64
-            warning_capacity: c.warning_capacity,             // Rule #2 for type string?
-            warning_offline: c.warning_offline,               // Rule #2 for type string?
-            warning_deadends: c.warning_deadends,             // Rule #2 for type string?
+            bolt11: c.bolt11, // Rule #2 for type string
+            payment_hash: <Sha256 as AsRef<[u8]>>::as_ref(&c.payment_hash).to_vec(), // Rule #2 for type hash
+            payment_secret: c.payment_secret.to_vec(), // Rule #2 for type secret
+            expires_at: c.expires_at,                  // Rule #2 for type u64
+            warning_capacity: c.warning_capacity,      // Rule #2 for type string?
+            warning_offline: c.warning_offline,        // Rule #2 for type string?
+            warning_deadends: c.warning_deadends,      // Rule #2 for type string?
             warning_private_unused: c.warning_private_unused, // Rule #2 for type string?
-            warning_mpp: c.warning_mpp,                       // Rule #2 for type string?
+            warning_mpp: c.warning_mpp,                // Rule #2 for type string?
         }
     }
 }

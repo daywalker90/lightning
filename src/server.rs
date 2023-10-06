@@ -4,6 +4,7 @@ use crate::pb;
 use crate::pb::hold_server::Hold;
 use crate::util::{short_channel_id_to_string, Holdstate};
 use anyhow::Result;
+use bitcoin::secp256k1::PublicKey;
 use cln_plugin::Plugin;
 use cln_rpc::primitives::{Amount, Routehint, Routehop, ShortChannelId};
 use lightning_invoice::{Bolt11Invoice, Bolt11InvoiceDescription, SignedRawBolt11Invoice};
@@ -284,7 +285,7 @@ impl Hold for Server {
                 .map(|hop| {
                     let scid = scid_vec.get(&hop.short_channel_id).unwrap();
                     Routehop {
-                        id: hop.src_node_id,
+                        id: PublicKey::from_str(&hop.src_node_id.to_string()).unwrap(),
                         scid: *scid,
                         feebase: Amount::from_msat(hop.fees.base_msat as u64),
                         feeprop: hop.fees.proportional_millionths,
