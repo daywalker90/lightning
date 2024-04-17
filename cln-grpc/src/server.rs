@@ -1850,6 +1850,38 @@ async fn open_channel_update(
 
 }
 
+async fn parse_feerate(
+    &self,
+    request: tonic::Request<pb::ParsefeerateRequest>,
+) -> Result<tonic::Response<pb::ParsefeerateResponse>, tonic::Status> {
+    let req = request.into_inner();
+    let req: requests::ParsefeerateRequest = req.into();
+    debug!("Client asked for parse_feerate");
+    trace!("parse_feerate request: {:?}", req);
+    let mut rpc = ClnRpc::new(&self.rpc_path)
+        .await
+        .map_err(|e| Status::new(Code::Internal, e.to_string()))?;
+    let result = rpc.call(Request::ParseFeerate(req))
+        .await
+        .map_err(|e| Status::new(
+           Code::Unknown,
+           format!("Error calling method ParseFeerate: {:?}", e)))?;
+    match result {
+        Response::ParseFeerate(r) => {
+           trace!("parse_feerate response: {:?}", r);
+           Ok(tonic::Response::new(r.into()))
+        },
+        r => Err(Status::new(
+            Code::Internal,
+            format!(
+                "Unexpected result {:?} to method call ParseFeerate",
+                r
+            )
+        )),
+    }
+
+}
+
 async fn ping(
     &self,
     request: tonic::Request<pb::PingRequest>,

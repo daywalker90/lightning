@@ -123,7 +123,7 @@ def load_jsonrpc_service():
         "OpenChannel_Init",
         "OpenChannel_Signed",
         "OpenChannel_Update",
-        # "parsefeerate",
+        "ParseFeerate",
         "Ping",
         # "plugin",
         # "reserveinputs",

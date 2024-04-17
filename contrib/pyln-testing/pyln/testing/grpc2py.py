@@ -1484,6 +1484,12 @@ def openchannel_update2py(m):
     })
 
 
+def parsefeerate2py(m):
+    return remove_default({
+        "perkw": m.perkw,  # PrimitiveField in generate_composite
+    })
+
+
 def ping2py(m):
     return remove_default({
         "totlen": m.totlen,  # PrimitiveField in generate_composite

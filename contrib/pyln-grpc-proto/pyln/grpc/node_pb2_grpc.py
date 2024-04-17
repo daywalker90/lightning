@@ -299,6 +299,11 @@ class NodeStub(object):
                 request_serializer=node__pb2.Openchannel_updateRequest.SerializeToString,
                 response_deserializer=node__pb2.Openchannel_updateResponse.FromString,
                 )
+        self.ParseFeerate = channel.unary_unary(
+                '/cln.Node/ParseFeerate',
+                request_serializer=node__pb2.ParsefeerateRequest.SerializeToString,
+                response_deserializer=node__pb2.ParsefeerateResponse.FromString,
+                )
         self.Ping = channel.unary_unary(
                 '/cln.Node/Ping',
                 request_serializer=node__pb2.PingRequest.SerializeToString,
@@ -706,6 +711,12 @@ class NodeServicer(object):
         context.set_details('Method not implemented!')
         raise NotImplementedError('Method not implemented!')
 
+    def ParseFeerate(self, request, context):
+        """Missing associated documentation comment in .proto file."""
+        context.set_code(grpc.StatusCode.UNIMPLEMENTED)
+        context.set_details('Method not implemented!')
+        raise NotImplementedError('Method not implemented!')
+
     def Ping(self, request, context):
         """Missing associated documentation comment in .proto file."""
         context.set_code(grpc.StatusCode.UNIMPLEMENTED)
@@ -1065,6 +1076,11 @@ def add_NodeServicer_to_server(servicer, server):
                     servicer.OpenChannel_Update,
                     request_deserializer=node__pb2.Openchannel_updateRequest.FromString,
                     response_serializer=node__pb2.Openchannel_updateResponse.SerializeToString,
+            ),
+            'ParseFeerate': grpc.unary_unary_rpc_method_handler(
+                    servicer.ParseFeerate,
+                    request_deserializer=node__pb2.ParsefeerateRequest.FromString,
+                    response_serializer=node__pb2.ParsefeerateResponse.SerializeToString,
             ),
             'Ping': grpc.unary_unary_rpc_method_handler(
                     servicer.Ping,
@@ -2102,6 +2118,23 @@ class Node(object):
         return grpc.experimental.unary_unary(request, target, '/cln.Node/OpenChannel_Update',
             node__pb2.Openchannel_updateRequest.SerializeToString,
             node__pb2.Openchannel_updateResponse.FromString,
+            options, channel_credentials,
+            insecure, call_credentials, compression, wait_for_ready, timeout, metadata)
+
+    @staticmethod
+    def ParseFeerate(request,
+            target,
+            options=(),
+            channel_credentials=None,
+            call_credentials=None,
+            insecure=False,
+            compression=None,
+            wait_for_ready=None,
+            timeout=None,
+            metadata=None):
+        return grpc.experimental.unary_unary(request, target, '/cln.Node/ParseFeerate',
+            node__pb2.ParsefeerateRequest.SerializeToString,
+            node__pb2.ParsefeerateResponse.FromString,
             options, channel_credentials,
             insecure, call_credentials, compression, wait_for_ready, timeout, metadata)
 

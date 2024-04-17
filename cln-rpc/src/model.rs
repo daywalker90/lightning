@@ -74,6 +74,7 @@ pub enum Request {
 	OpenChannel_Init(requests::Openchannel_initRequest),
 	OpenChannel_Signed(requests::Openchannel_signedRequest),
 	OpenChannel_Update(requests::Openchannel_updateRequest),
+	ParseFeerate(requests::ParsefeerateRequest),
 	Ping(requests::PingRequest),
 	SendCustomMsg(requests::SendcustommsgRequest),
 	SetChannel(requests::SetchannelRequest),
@@ -149,6 +150,7 @@ pub enum Response {
 	OpenChannel_Init(responses::Openchannel_initResponse),
 	OpenChannel_Signed(responses::Openchannel_signedResponse),
 	OpenChannel_Update(responses::Openchannel_updateResponse),
+	ParseFeerate(responses::ParsefeerateResponse),
 	Ping(responses::PingResponse),
 	SendCustomMsg(responses::SendcustommsgResponse),
 	SetChannel(responses::SetchannelResponse),
@@ -2192,6 +2194,28 @@ pub mod requests {
 
 	    fn method(&self) -> &str {
 	        "openchannel_update"
+	    }
+	}
+	#[derive(Clone, Debug, Deserialize, Serialize)]
+	pub struct ParsefeerateRequest {
+	    pub feerate_str: String,
+	}
+
+	impl From<ParsefeerateRequest> for Request {
+	    fn from(r: ParsefeerateRequest) -> Self {
+	        Request::ParseFeerate(r)
+	    }
+	}
+
+	impl IntoRequest for ParsefeerateRequest {
+	    type Response = super::responses::ParsefeerateResponse;
+	}
+
+	impl TypedRequest for ParsefeerateRequest {
+	    type Response = super::responses::ParsefeerateResponse;
+
+	    fn method(&self) -> &str {
+	        "parsefeerate"
 	    }
 	}
 	#[derive(Clone, Debug, Deserialize, Serialize)]
@@ -6045,6 +6069,23 @@ pub mod responses {
 	    fn try_from(response: Response) -> Result<Self, Self::Error> {
 	        match response {
 	            Response::OpenChannel_Update(response) => Ok(response),
+	            _ => Err(TryFromResponseError)
+	        }
+	    }
+	}
+
+	#[derive(Clone, Debug, Deserialize, Serialize)]
+	pub struct ParsefeerateResponse {
+	    #[serde(skip_serializing_if = "Option::is_none")]
+	    pub perkw: Option<u32>,
+	}
+
+	impl TryFrom<Response> for ParsefeerateResponse {
+	    type Error = super::TryFromResponseError;
+
+	    fn try_from(response: Response) -> Result<Self, Self::Error> {
+	        match response {
+	            Response::ParseFeerate(response) => Ok(response),
 	            _ => Err(TryFromResponseError)
 	        }
 	    }

@@ -1721,6 +1721,12 @@
             "OpenChannel_Update.psbt": 3,
             "OpenChannel_Update.requires_confirmed_inputs": 7
         },
+        "ParsefeerateRequest": {
+            "ParseFeerate.feerate_str": 1
+        },
+        "ParsefeerateResponse": {
+            "ParseFeerate.perkw": 1
+        },
         "PayRequest": {
             "Pay.amount_msat": 13,
             "Pay.bolt11": 1,
@@ -6161,6 +6167,18 @@
             "deprecated": false
         },
         "OpenChannel_Update.requires_confirmed_inputs": {
+            "added": "pre-v0.10.1",
+            "deprecated": false
+        },
+        "ParseFeerate": {
+            "added": "pre-v0.10.1",
+            "deprecated": null
+        },
+        "ParseFeerate.feerate_str": {
+            "added": "pre-v0.10.1",
+            "deprecated": false
+        },
+        "ParseFeerate.perkw": {
             "added": "pre-v0.10.1",
             "deprecated": false
         },

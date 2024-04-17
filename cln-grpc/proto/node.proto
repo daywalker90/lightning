@@ -65,6 +65,7 @@ service Node {
 	rpc OpenChannel_Init(Openchannel_initRequest) returns (Openchannel_initResponse) {}
 	rpc OpenChannel_Signed(Openchannel_signedRequest) returns (Openchannel_signedResponse) {}
 	rpc OpenChannel_Update(Openchannel_updateRequest) returns (Openchannel_updateResponse) {}
+	rpc ParseFeerate(ParsefeerateRequest) returns (ParsefeerateResponse) {}
 	rpc Ping(PingRequest) returns (PingResponse) {}
 	rpc SendCustomMsg(SendcustommsgRequest) returns (SendcustommsgResponse) {}
 	rpc SetChannel(SetchannelRequest) returns (SetchannelResponse) {}
@@ -1925,6 +1926,14 @@ message Openchannel_updateResponse {
 message Openchannel_updateChannel_type {
 	repeated uint32 bits = 1;
 	repeated ChannelTypeName names = 2;
+}
+
+message ParsefeerateRequest {
+	string feerate_str = 1;
+}
+
+message ParsefeerateResponse {
+	optional uint32 perkw = 1;
 }
 
 message PingRequest {

@@ -1797,6 +1797,15 @@ impl From<responses::Openchannel_updateResponse> for pb::OpenchannelUpdateRespon
 }
 
 #[allow(unused_variables)]
+impl From<responses::ParsefeerateResponse> for pb::ParsefeerateResponse {
+    fn from(c: responses::ParsefeerateResponse) -> Self {
+        Self {
+            perkw: c.perkw, // Rule #2 for type u32?
+        }
+    }
+}
+
+#[allow(unused_variables)]
 impl From<responses::PingResponse> for pb::PingResponse {
     fn from(c: responses::PingResponse) -> Self {
         Self {
@@ -2731,6 +2740,15 @@ impl From<requests::Openchannel_updateRequest> for pb::OpenchannelUpdateRequest 
 }
 
 #[allow(unused_variables)]
+impl From<requests::ParsefeerateRequest> for pb::ParsefeerateRequest {
+    fn from(c: requests::ParsefeerateRequest) -> Self {
+        Self {
+            feerate_str: c.feerate_str, // Rule #2 for type string
+        }
+    }
+}
+
+#[allow(unused_variables)]
 impl From<requests::PingRequest> for pb::PingRequest {
     fn from(c: requests::PingRequest) -> Self {
         Self {
@@ -3591,6 +3609,15 @@ impl From<pb::OpenchannelUpdateRequest> for requests::Openchannel_updateRequest 
         Self {
             channel_id: Sha256::from_slice(&c.channel_id).unwrap(), // Rule #1 for type hash
             psbt: c.psbt, // Rule #1 for type string
+        }
+    }
+}
+
+#[allow(unused_variables)]
+impl From<pb::ParsefeerateRequest> for requests::ParsefeerateRequest {
+    fn from(c: pb::ParsefeerateRequest) -> Self {
+        Self {
+            feerate_str: c.feerate_str, // Rule #1 for type string
         }
     }
 }
