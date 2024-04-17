@@ -125,7 +125,7 @@ def load_jsonrpc_service():
         "OpenChannel_Update",
         # "parsefeerate",
         "Ping",
-        # "plugin",
+        "Plugin",
         # "reserveinputs",
         "SendCustomMsg",
         # "sendinvoice",

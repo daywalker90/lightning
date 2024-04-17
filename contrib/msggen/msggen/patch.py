@@ -186,6 +186,8 @@ class OverridePatch(Patch):
         'OpenChannel_Init.channel_type.names[]': 'ChannelTypeName',
         'OpenChannel_Bump.channel_type.names[]': 'ChannelTypeName',
         'OpenChannel_Update.channel_type.names[]': 'ChannelTypeName',
+        'Plugin.subcommand' : 'PluginSubcommand',
+        'Plugin.command' : 'PluginSubcommand',
     }
 
     def visit(self, f: model.Field) -> None:
