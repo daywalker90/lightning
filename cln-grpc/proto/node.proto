@@ -67,6 +67,7 @@ service Node {
 	rpc OpenChannel_Update(Openchannel_updateRequest) returns (Openchannel_updateResponse) {}
 	rpc Ping(PingRequest) returns (PingResponse) {}
 	rpc SendCustomMsg(SendcustommsgRequest) returns (SendcustommsgResponse) {}
+	rpc SendOnionMessage(SendonionmessageRequest) returns (SendonionmessageResponse) {}
 	rpc SetChannel(SetchannelRequest) returns (SetchannelResponse) {}
 	rpc SignInvoice(SigninvoiceRequest) returns (SigninvoiceResponse) {}
 	rpc SignMessage(SignmessageRequest) returns (SignmessageResponse) {}
@@ -1944,6 +1945,20 @@ message SendcustommsgRequest {
 
 message SendcustommsgResponse {
 	string status = 1;
+}
+
+message SendonionmessageRequest {
+	bytes first_id = 1;
+	bytes blinding = 2;
+	repeated SendonionmessageHops hops = 3;
+}
+
+message SendonionmessageResponse {
+}
+
+message SendonionmessageHops {
+	bytes node = 1;
+	uint32 tlv = 2;
 }
 
 message SetchannelRequest {
