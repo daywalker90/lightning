@@ -64,6 +64,7 @@ def load_jsonrpc_service():
         "SendPay",
         "ListChannels",
         "AddGossip",
+        "AddPsbtOutput",
         "AutoCleanInvoice",
         "CheckMessage",
         "Close",
