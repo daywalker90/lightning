@@ -6,6 +6,7 @@ import functools
 from collections import OrderedDict
 
 
+
 def combine_schemas(schema_dir: Path, dest: Path):
     """Enumerate all schema files, and combine it into a single JSON file."""
     bundle = OrderedDict()
@@ -65,6 +66,8 @@ def load_jsonrpc_service():
         "ListChannels",
         "AddGossip",
         "AutoCleanInvoice",
+        "AutoClean-Once",
+        "AutoClean-Status",
         "CheckMessage",
         "Close",
         "Connect",
