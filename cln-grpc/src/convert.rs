@@ -1881,6 +1881,39 @@ impl From<responses::ListhtlcsResponse> for pb::ListhtlcsResponse {
 }
 
 #[allow(unused_variables)]
+impl From<responses::ListsqlschemasSchemasColumns> for pb::ListsqlschemasSchemasColumns {
+    fn from(c: responses::ListsqlschemasSchemasColumns) -> Self {
+        Self {
+            name: c.name, // Rule #2 for type string
+            item_type: c.item_type as i32,
+        }
+    }
+}
+
+#[allow(unused_variables)]
+impl From<responses::ListsqlschemasSchemas> for pb::ListsqlschemasSchemas {
+    fn from(c: responses::ListsqlschemasSchemas) -> Self {
+        Self {
+            // Field: ListSqlSchemas.schemas[].columns[]
+            columns: c.columns.into_iter().map(|i| i.into()).collect(), // Rule #3 for type ListsqlschemasSchemasColumns
+            // Field: ListSqlSchemas.schemas[].indices[][]
+            indices: c.indices.map(|arr| arr.into_iter().map(|i| i.into()).collect()).unwrap_or(vec![]), // Rule #3
+            tablename: c.tablename, // Rule #2 for type string
+        }
+    }
+}
+
+#[allow(unused_variables)]
+impl From<responses::ListsqlschemasResponse> for pb::ListsqlschemasResponse {
+    fn from(c: responses::ListsqlschemasResponse) -> Self {
+        Self {
+            // Field: ListSqlSchemas.schemas[]
+            schemas: c.schemas.into_iter().map(|i| i.into()).collect(), // Rule #3 for type ListsqlschemasSchemas
+        }
+    }
+}
+
+#[allow(unused_variables)]
 impl From<responses::MultifundchannelChannel_idsChannel_type> for pb::MultifundchannelChannelIdsChannelType {
     fn from(c: responses::MultifundchannelChannel_idsChannel_type) -> Self {
         Self {
@@ -2958,6 +2991,15 @@ impl From<requests::ListhtlcsRequest> for pb::ListhtlcsRequest {
 }
 
 #[allow(unused_variables)]
+impl From<requests::ListsqlschemasRequest> for pb::ListsqlschemasRequest {
+    fn from(c: requests::ListsqlschemasRequest) -> Self {
+        Self {
+            table: c.table, // Rule #2 for type string?
+        }
+    }
+}
+
+#[allow(unused_variables)]
 impl From<requests::MultifundchannelDestinations> for pb::MultifundchannelDestinations {
     fn from(c: requests::MultifundchannelDestinations) -> Self {
         Self {
@@ -3899,6 +3941,15 @@ impl From<pb::ListhtlcsRequest> for requests::ListhtlcsRequest {
     fn from(c: pb::ListhtlcsRequest) -> Self {
         Self {
             id: c.id, // Rule #1 for type string?
+        }
+    }
+}
+
+#[allow(unused_variables)]
+impl From<pb::ListsqlschemasRequest> for requests::ListsqlschemasRequest {
+    fn from(c: pb::ListsqlschemasRequest) -> Self {
+        Self {
+            table: c.table, // Rule #1 for type string?
         }
     }
 }

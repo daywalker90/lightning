@@ -1538,6 +1538,27 @@ def listhtlcs2py(m):
     })
 
 
+def listsqlschemas_schemas_columns2py(m):
+    return remove_default({
+        "type": str(m.item_type),  # EnumField in generate_composite
+        "name": m.name,  # PrimitiveField in generate_composite
+    })
+
+
+def listsqlschemas_schemas2py(m):
+    return remove_default({
+        "columns": [listsqlschemas_schemas_columns2py(i) for i in m.columns],  # ArrayField[composite] in generate_composite
+        "indices": [m.indices for i in m.indices], # ArrayField[primitive] in generate_composite
+        "tablename": m.tablename,  # PrimitiveField in generate_composite
+    })
+
+
+def listsqlschemas2py(m):
+    return remove_default({
+        "schemas": [listsqlschemas_schemas2py(i) for i in m.schemas],  # ArrayField[composite] in generate_composite
+    })
+
+
 def multifundchannel_channel_ids_channel_type2py(m):
     return remove_default({
         "bits": [m.bits for i in m.bits], # ArrayField[primitive] in generate_composite

@@ -118,6 +118,7 @@ def load_jsonrpc_service():
         "ListOffers",
         "ListPays",
         "ListHtlcs",
+        "ListSqlSchemas",
         "MultiFundChannel",
         # "multiwithdraw",
         "Offer",

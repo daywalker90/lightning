@@ -1850,6 +1850,38 @@ async fn list_htlcs(
 
 }
 
+async fn list_sql_schemas(
+    &self,
+    request: tonic::Request<pb::ListsqlschemasRequest>,
+) -> Result<tonic::Response<pb::ListsqlschemasResponse>, tonic::Status> {
+    let req = request.into_inner();
+    let req: requests::ListsqlschemasRequest = req.into();
+    debug!("Client asked for list_sql_schemas");
+    trace!("list_sql_schemas request: {:?}", req);
+    let mut rpc = ClnRpc::new(&self.rpc_path)
+        .await
+        .map_err(|e| Status::new(Code::Internal, e.to_string()))?;
+    let result = rpc.call(Request::ListSqlSchemas(req))
+        .await
+        .map_err(|e| Status::new(
+           Code::Unknown,
+           format!("Error calling method ListSqlSchemas: {:?}", e)))?;
+    match result {
+        Response::ListSqlSchemas(r) => {
+           trace!("list_sql_schemas response: {:?}", r);
+           Ok(tonic::Response::new(r.into()))
+        },
+        r => Err(Status::new(
+            Code::Internal,
+            format!(
+                "Unexpected result {:?} to method call ListSqlSchemas",
+                r
+            )
+        )),
+    }
+
+}
+
 async fn multi_fund_channel(
     &self,
     request: tonic::Request<pb::MultifundchannelRequest>,

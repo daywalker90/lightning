@@ -76,6 +76,7 @@ pub enum Request {
 	ListOffers(requests::ListoffersRequest),
 	ListPays(requests::ListpaysRequest),
 	ListHtlcs(requests::ListhtlcsRequest),
+	ListSqlSchemas(requests::ListsqlschemasRequest),
 	MultiFundChannel(requests::MultifundchannelRequest),
 	Offer(requests::OfferRequest),
 	OpenChannel_Abort(requests::Openchannel_abortRequest),
@@ -161,6 +162,7 @@ pub enum Response {
 	ListOffers(responses::ListoffersResponse),
 	ListPays(responses::ListpaysResponse),
 	ListHtlcs(responses::ListhtlcsResponse),
+	ListSqlSchemas(responses::ListsqlschemasResponse),
 	MultiFundChannel(responses::MultifundchannelResponse),
 	Offer(responses::OfferResponse),
 	OpenChannel_Abort(responses::Openchannel_abortResponse),
@@ -2231,6 +2233,29 @@ pub mod requests {
 
 	    fn method(&self) -> &str {
 	        "listhtlcs"
+	    }
+	}
+	#[derive(Clone, Debug, Deserialize, Serialize)]
+	pub struct ListsqlschemasRequest {
+	    #[serde(skip_serializing_if = "Option::is_none")]
+	    pub table: Option<String>,
+	}
+
+	impl From<ListsqlschemasRequest> for Request {
+	    fn from(r: ListsqlschemasRequest) -> Self {
+	        Request::ListSqlSchemas(r)
+	    }
+	}
+
+	impl IntoRequest for ListsqlschemasRequest {
+	    type Response = super::responses::ListsqlschemasResponse;
+	}
+
+	impl TypedRequest for ListsqlschemasRequest {
+	    type Response = super::responses::ListsqlschemasResponse;
+
+	    fn method(&self) -> &str {
+	        "listsqlschemas"
 	    }
 	}
 	#[derive(Clone, Debug, Deserialize, Serialize)]
@@ -6376,6 +6401,75 @@ pub mod responses {
 	    fn try_from(response: Response) -> Result<Self, Self::Error> {
 	        match response {
 	            Response::ListHtlcs(response) => Ok(response),
+	            _ => Err(TryFromResponseError)
+	        }
+	    }
+	}
+
+	/// ['The SQL type of the column.']
+	#[derive(Copy, Clone, Debug, Deserialize, Serialize, PartialEq, Eq)]
+	pub enum ListsqlschemasSchemasColumnsType {
+	    #[serde(rename = "INTEGER")]
+	    INTEGER = 0,
+	    #[serde(rename = "BLOB")]
+	    BLOB = 1,
+	    #[serde(rename = "TEXT")]
+	    TEXT = 2,
+	    #[serde(rename = "REAL")]
+	    REAL = 3,
+	}
+
+	impl TryFrom<i32> for ListsqlschemasSchemasColumnsType {
+	    type Error = anyhow::Error;
+	    fn try_from(c: i32) -> Result<ListsqlschemasSchemasColumnsType, anyhow::Error> {
+	        match c {
+	    0 => Ok(ListsqlschemasSchemasColumnsType::INTEGER),
+	    1 => Ok(ListsqlschemasSchemasColumnsType::BLOB),
+	    2 => Ok(ListsqlschemasSchemasColumnsType::TEXT),
+	    3 => Ok(ListsqlschemasSchemasColumnsType::REAL),
+	            o => Err(anyhow::anyhow!("Unknown variant {} for enum ListsqlschemasSchemasColumnsType", o)),
+	        }
+	    }
+	}
+
+	impl ToString for ListsqlschemasSchemasColumnsType {
+	    fn to_string(&self) -> String {
+	        match self {
+	            ListsqlschemasSchemasColumnsType::INTEGER => "INTEGER",
+	            ListsqlschemasSchemasColumnsType::BLOB => "BLOB",
+	            ListsqlschemasSchemasColumnsType::TEXT => "TEXT",
+	            ListsqlschemasSchemasColumnsType::REAL => "REAL",
+	        }.to_string()
+	    }
+	}
+
+	#[derive(Clone, Debug, Deserialize, Serialize)]
+	pub struct ListsqlschemasSchemasColumns {
+	    // Path `ListSqlSchemas.schemas[].columns[].type`
+	    #[serde(rename = "type")]
+	    pub item_type: ListsqlschemasSchemasColumnsType,
+	    pub name: String,
+	}
+
+	#[derive(Clone, Debug, Deserialize, Serialize)]
+	pub struct ListsqlschemasSchemas {
+	    #[serde(skip_serializing_if = "crate::is_none_or_empty")]
+	    pub indices: Option<Vec<Vec<String>>>,
+	    pub columns: Vec<ListsqlschemasSchemasColumns>,
+	    pub tablename: String,
+	}
+
+	#[derive(Clone, Debug, Deserialize, Serialize)]
+	pub struct ListsqlschemasResponse {
+	    pub schemas: Vec<ListsqlschemasSchemas>,
+	}
+
+	impl TryFrom<Response> for ListsqlschemasResponse {
+	    type Error = super::TryFromResponseError;
+
+	    fn try_from(response: Response) -> Result<Self, Self::Error> {
+	        match response {
+	            Response::ListSqlSchemas(response) => Ok(response),
 	            _ => Err(TryFromResponseError)
 	        }
 	    }

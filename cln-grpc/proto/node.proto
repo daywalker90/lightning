@@ -65,6 +65,7 @@ service Node {
 	rpc ListOffers(ListoffersRequest) returns (ListoffersResponse) {}
 	rpc ListPays(ListpaysRequest) returns (ListpaysResponse) {}
 	rpc ListHtlcs(ListhtlcsRequest) returns (ListhtlcsResponse) {}
+	rpc ListSqlSchemas(ListsqlschemasRequest) returns (ListsqlschemasResponse) {}
 	rpc MultiFundChannel(MultifundchannelRequest) returns (MultifundchannelResponse) {}
 	rpc Offer(OfferRequest) returns (OfferResponse) {}
 	rpc OpenChannel_Abort(Openchannel_abortRequest) returns (Openchannel_abortResponse) {}
@@ -1962,6 +1963,32 @@ message ListhtlcsHtlcs {
 	ListhtlcsHtlcsDirection direction = 5;
 	bytes payment_hash = 6;
 	HtlcState state = 7;
+}
+
+message ListsqlschemasRequest {
+	optional string table = 1;
+}
+
+message ListsqlschemasResponse {
+	repeated ListsqlschemasSchemas schemas = 1;
+}
+
+message ListsqlschemasSchemas {
+	string tablename = 1;
+	repeated ListsqlschemasSchemasColumns columns = 2;
+	repeated string indices = 3;
+}
+
+message ListsqlschemasSchemasColumns {
+	// ListSqlSchemas.schemas[].columns[].type
+	enum ListsqlschemasSchemasColumnsType {
+		INTEGER = 0;
+		BLOB = 1;
+		TEXT = 2;
+		REAL = 3;
+	}
+	string name = 1;
+	ListsqlschemasSchemasColumnsType item_type = 2;
 }
 
 message MultifundchannelRequest {
