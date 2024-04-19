@@ -2015,6 +2015,15 @@ impl From<responses::SetchannelResponse> for pb::SetchannelResponse {
 }
 
 #[allow(unused_variables)]
+impl From<responses::SetpsbtversionResponse> for pb::SetpsbtversionResponse {
+    fn from(c: responses::SetpsbtversionResponse) -> Self {
+        Self {
+            psbt: c.psbt, // Rule #2 for type string
+        }
+    }
+}
+
+#[allow(unused_variables)]
 impl From<responses::SigninvoiceResponse> for pb::SigninvoiceResponse {
     fn from(c: responses::SigninvoiceResponse) -> Self {
         Self {
@@ -2958,6 +2967,16 @@ impl From<requests::SetchannelRequest> for pb::SetchannelRequest {
 }
 
 #[allow(unused_variables)]
+impl From<requests::SetpsbtversionRequest> for pb::SetpsbtversionRequest {
+    fn from(c: requests::SetpsbtversionRequest) -> Self {
+        Self {
+            psbt: c.psbt, // Rule #2 for type string
+            version: c.version, // Rule #2 for type u32
+        }
+    }
+}
+
+#[allow(unused_variables)]
 impl From<requests::SigninvoiceRequest> for pb::SigninvoiceRequest {
     fn from(c: requests::SigninvoiceRequest) -> Self {
         Self {
@@ -3837,6 +3856,16 @@ impl From<pb::SetchannelRequest> for requests::SetchannelRequest {
             htlcmin: c.htlcmin.map(|a| a.into()), // Rule #1 for type msat?
             id: c.id, // Rule #1 for type string
             ignorefeelimits: c.ignorefeelimits, // Rule #1 for type boolean?
+        }
+    }
+}
+
+#[allow(unused_variables)]
+impl From<pb::SetpsbtversionRequest> for requests::SetpsbtversionRequest {
+    fn from(c: pb::SetpsbtversionRequest) -> Self {
+        Self {
+            psbt: c.psbt, // Rule #1 for type string
+            version: c.version, // Rule #1 for type u32
         }
     }
 }

@@ -70,6 +70,7 @@ service Node {
 	rpc Ping(PingRequest) returns (PingResponse) {}
 	rpc SendCustomMsg(SendcustommsgRequest) returns (SendcustommsgResponse) {}
 	rpc SetChannel(SetchannelRequest) returns (SetchannelResponse) {}
+	rpc SetPsbtVersion(SetpsbtversionRequest) returns (SetpsbtversionResponse) {}
 	rpc SignInvoice(SigninvoiceRequest) returns (SigninvoiceResponse) {}
 	rpc SignMessage(SignmessageRequest) returns (SignmessageResponse) {}
 	rpc WaitBlockHeight(WaitblockheightRequest) returns (WaitblockheightResponse) {}
@@ -2074,6 +2075,15 @@ message SetchannelChannels {
 	Amount maximum_htlc_out_msat = 8;
 	optional string warning_htlcmax_too_high = 9;
 	optional bool ignore_fee_limits = 10;
+}
+
+message SetpsbtversionRequest {
+	string psbt = 1;
+	uint32 version = 2;
+}
+
+message SetpsbtversionResponse {
+	string psbt = 1;
 }
 
 message SigninvoiceRequest {
