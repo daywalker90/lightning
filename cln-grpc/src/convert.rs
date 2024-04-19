@@ -1978,6 +1978,52 @@ impl From<responses::PingResponse> for pb::PingResponse {
 }
 
 #[allow(unused_variables)]
+impl From<responses::RenepaystatusPaystatus> for pb::RenepaystatusPaystatus {
+    fn from(c: responses::RenepaystatusPaystatus) -> Self {
+        Self {
+            amount_msat: Some(c.amount_msat.into()), // Rule #2 for type msat
+            amount_sent_msat: c.amount_sent_msat.map(|f| f.into()), // Rule #2 for type msat?
+            bolt11: c.bolt11, // Rule #2 for type string
+            created_at: c.created_at, // Rule #2 for type number
+            destination: c.destination.map(|v| v.serialize().to_vec()), // Rule #2 for type pubkey?
+            groupid: c.groupid, // Rule #2 for type u32
+            // Field: RenePayStatus.paystatus[].notes[]
+            notes: c.notes.into_iter().map(|i| i.into()).collect(), // Rule #3 for type string
+            parts: c.parts, // Rule #2 for type u32?
+            payment_hash: <Sha256 as AsRef<[u8]>>::as_ref(&c.payment_hash).to_vec(), // Rule #2 for type hash
+            payment_preimage: c.payment_preimage.map(|v| v.to_vec()), // Rule #2 for type secret?
+            status: c.status as i32,
+        }
+    }
+}
+
+#[allow(unused_variables)]
+impl From<responses::RenepaystatusResponse> for pb::RenepaystatusResponse {
+    fn from(c: responses::RenepaystatusResponse) -> Self {
+        Self {
+            // Field: RenePayStatus.paystatus[]
+            paystatus: c.paystatus.into_iter().map(|i| i.into()).collect(), // Rule #3 for type RenepaystatusPaystatus
+        }
+    }
+}
+
+#[allow(unused_variables)]
+impl From<responses::RenepayResponse> for pb::RenepayResponse {
+    fn from(c: responses::RenepayResponse) -> Self {
+        Self {
+            amount_msat: Some(c.amount_msat.into()), // Rule #2 for type msat
+            amount_sent_msat: Some(c.amount_sent_msat.into()), // Rule #2 for type msat
+            created_at: c.created_at, // Rule #2 for type number
+            destination: c.destination.map(|v| v.serialize().to_vec()), // Rule #2 for type pubkey?
+            parts: c.parts, // Rule #2 for type u32
+            payment_hash: <Sha256 as AsRef<[u8]>>::as_ref(&c.payment_hash).to_vec(), // Rule #2 for type hash
+            payment_preimage: c.payment_preimage.to_vec(), // Rule #2 for type secret
+            status: c.status as i32,
+        }
+    }
+}
+
+#[allow(unused_variables)]
 impl From<responses::SendcustommsgResponse> for pb::SendcustommsgResponse {
     fn from(c: responses::SendcustommsgResponse) -> Self {
         Self {
@@ -2933,6 +2979,31 @@ impl From<requests::PingRequest> for pb::PingRequest {
 }
 
 #[allow(unused_variables)]
+impl From<requests::RenepaystatusRequest> for pb::RenepaystatusRequest {
+    fn from(c: requests::RenepaystatusRequest) -> Self {
+        Self {
+            invstring: c.invstring, // Rule #2 for type string?
+        }
+    }
+}
+
+#[allow(unused_variables)]
+impl From<requests::RenepayRequest> for pb::RenepayRequest {
+    fn from(c: requests::RenepayRequest) -> Self {
+        Self {
+            amount_msat: c.amount_msat.map(|f| f.into()), // Rule #2 for type msat?
+            description: c.description, // Rule #2 for type string?
+            dev_use_shadow: c.dev_use_shadow, // Rule #2 for type boolean?
+            invstring: c.invstring, // Rule #2 for type string
+            label: c.label, // Rule #2 for type string?
+            maxdelay: c.maxdelay, // Rule #2 for type u32?
+            maxfee: c.maxfee.map(|f| f.into()), // Rule #2 for type msat?
+            retry_for: c.retry_for, // Rule #2 for type u32?
+        }
+    }
+}
+
+#[allow(unused_variables)]
 impl From<requests::SendcustommsgRequest> for pb::SendcustommsgRequest {
     fn from(c: requests::SendcustommsgRequest) -> Self {
         Self {
@@ -3812,6 +3883,31 @@ impl From<pb::PingRequest> for requests::PingRequest {
             id: PublicKey::from_slice(&c.id).unwrap(), // Rule #1 for type pubkey
             len: c.len.map(|v| v as u16), // Rule #1 for type u16?
             pongbytes: c.pongbytes.map(|v| v as u16), // Rule #1 for type u16?
+        }
+    }
+}
+
+#[allow(unused_variables)]
+impl From<pb::RenepaystatusRequest> for requests::RenepaystatusRequest {
+    fn from(c: pb::RenepaystatusRequest) -> Self {
+        Self {
+            invstring: c.invstring, // Rule #1 for type string?
+        }
+    }
+}
+
+#[allow(unused_variables)]
+impl From<pb::RenepayRequest> for requests::RenepayRequest {
+    fn from(c: pb::RenepayRequest) -> Self {
+        Self {
+            amount_msat: c.amount_msat.map(|a| a.into()), // Rule #1 for type msat?
+            description: c.description, // Rule #1 for type string?
+            dev_use_shadow: c.dev_use_shadow, // Rule #1 for type boolean?
+            invstring: c.invstring, // Rule #1 for type string
+            label: c.label, // Rule #1 for type string?
+            maxdelay: c.maxdelay, // Rule #1 for type u32?
+            maxfee: c.maxfee.map(|a| a.into()), // Rule #1 for type msat?
+            retry_for: c.retry_for, // Rule #1 for type u32?
         }
     }
 }

@@ -129,6 +129,8 @@ def load_jsonrpc_service():
         # "parsefeerate",
         "Ping",
         # "plugin",
+        "RenePayStatus",
+        "RenePay",
         # "reserveinputs",
         "SendCustomMsg",
         # "sendinvoice",

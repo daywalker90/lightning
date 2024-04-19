@@ -314,6 +314,16 @@ class NodeStub(object):
                 request_serializer=node__pb2.PingRequest.SerializeToString,
                 response_deserializer=node__pb2.PingResponse.FromString,
                 )
+        self.RenePayStatus = channel.unary_unary(
+                '/cln.Node/RenePayStatus',
+                request_serializer=node__pb2.RenepaystatusRequest.SerializeToString,
+                response_deserializer=node__pb2.RenepaystatusResponse.FromString,
+                )
+        self.RenePay = channel.unary_unary(
+                '/cln.Node/RenePay',
+                request_serializer=node__pb2.RenepayRequest.SerializeToString,
+                response_deserializer=node__pb2.RenepayResponse.FromString,
+                )
         self.SendCustomMsg = channel.unary_unary(
                 '/cln.Node/SendCustomMsg',
                 request_serializer=node__pb2.SendcustommsgRequest.SerializeToString,
@@ -734,6 +744,18 @@ class NodeServicer(object):
         context.set_details('Method not implemented!')
         raise NotImplementedError('Method not implemented!')
 
+    def RenePayStatus(self, request, context):
+        """Missing associated documentation comment in .proto file."""
+        context.set_code(grpc.StatusCode.UNIMPLEMENTED)
+        context.set_details('Method not implemented!')
+        raise NotImplementedError('Method not implemented!')
+
+    def RenePay(self, request, context):
+        """Missing associated documentation comment in .proto file."""
+        context.set_code(grpc.StatusCode.UNIMPLEMENTED)
+        context.set_details('Method not implemented!')
+        raise NotImplementedError('Method not implemented!')
+
     def SendCustomMsg(self, request, context):
         """Missing associated documentation comment in .proto file."""
         context.set_code(grpc.StatusCode.UNIMPLEMENTED)
@@ -1102,6 +1124,16 @@ def add_NodeServicer_to_server(servicer, server):
                     servicer.Ping,
                     request_deserializer=node__pb2.PingRequest.FromString,
                     response_serializer=node__pb2.PingResponse.SerializeToString,
+            ),
+            'RenePayStatus': grpc.unary_unary_rpc_method_handler(
+                    servicer.RenePayStatus,
+                    request_deserializer=node__pb2.RenepaystatusRequest.FromString,
+                    response_serializer=node__pb2.RenepaystatusResponse.SerializeToString,
+            ),
+            'RenePay': grpc.unary_unary_rpc_method_handler(
+                    servicer.RenePay,
+                    request_deserializer=node__pb2.RenepayRequest.FromString,
+                    response_serializer=node__pb2.RenepayResponse.SerializeToString,
             ),
             'SendCustomMsg': grpc.unary_unary_rpc_method_handler(
                     servicer.SendCustomMsg,
@@ -2185,6 +2217,40 @@ class Node(object):
         return grpc.experimental.unary_unary(request, target, '/cln.Node/Ping',
             node__pb2.PingRequest.SerializeToString,
             node__pb2.PingResponse.FromString,
+            options, channel_credentials,
+            insecure, call_credentials, compression, wait_for_ready, timeout, metadata)
+
+    @staticmethod
+    def RenePayStatus(request,
+            target,
+            options=(),
+            channel_credentials=None,
+            call_credentials=None,
+            insecure=False,
+            compression=None,
+            wait_for_ready=None,
+            timeout=None,
+            metadata=None):
+        return grpc.experimental.unary_unary(request, target, '/cln.Node/RenePayStatus',
+            node__pb2.RenepaystatusRequest.SerializeToString,
+            node__pb2.RenepaystatusResponse.FromString,
+            options, channel_credentials,
+            insecure, call_credentials, compression, wait_for_ready, timeout, metadata)
+
+    @staticmethod
+    def RenePay(request,
+            target,
+            options=(),
+            channel_credentials=None,
+            call_credentials=None,
+            insecure=False,
+            compression=None,
+            wait_for_ready=None,
+            timeout=None,
+            metadata=None):
+        return grpc.experimental.unary_unary(request, target, '/cln.Node/RenePay',
+            node__pb2.RenepayRequest.SerializeToString,
+            node__pb2.RenepayResponse.FromString,
             options, channel_credentials,
             insecure, call_credentials, compression, wait_for_ready, timeout, metadata)
 
