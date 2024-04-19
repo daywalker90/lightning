@@ -27265,17 +27265,7 @@
           ]
         },
         "val": {
-          "oneOf": [
-            {
-              "type": "string"
-            },
-            {
-              "type": "integer"
-            },
-            {
-              "type": "boolean"
-            }
-          ],
+          "type": "string",
           "description": [
             "Value of the config variable to be set or updated."
           ]

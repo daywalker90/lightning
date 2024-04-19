@@ -134,6 +134,7 @@ def load_jsonrpc_service():
         # "sendinvoice",
         # "sendonionmessage",
         "SetChannel",
+        "SetConfig",
         "SignInvoice",
         "SignMessage",
         # "unreserveinputs",
