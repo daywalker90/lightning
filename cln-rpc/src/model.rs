@@ -83,6 +83,9 @@ pub enum Request {
 	SetChannel(requests::SetchannelRequest),
 	SignInvoice(requests::SigninvoiceRequest),
 	SignMessage(requests::SignmessageRequest),
+	Splice_Init(requests::Splice_initRequest),
+	Splice_Signed(requests::Splice_signedRequest),
+	Splice_Update(requests::Splice_updateRequest),
 	WaitBlockHeight(requests::WaitblockheightRequest),
 	Wait(requests::WaitRequest),
 	Stop(requests::StopRequest),
@@ -163,6 +166,9 @@ pub enum Response {
 	SetChannel(responses::SetchannelResponse),
 	SignInvoice(responses::SigninvoiceResponse),
 	SignMessage(responses::SignmessageResponse),
+	Splice_Init(responses::Splice_initResponse),
+	Splice_Signed(responses::Splice_signedResponse),
+	Splice_Update(responses::Splice_updateResponse),
 	WaitBlockHeight(responses::WaitblockheightResponse),
 	Wait(responses::WaitResponse),
 	Stop(responses::StopResponse),
@@ -2376,6 +2382,83 @@ pub mod requests {
 
 	    fn method(&self) -> &str {
 	        "signmessage"
+	    }
+	}
+	#[derive(Clone, Debug, Deserialize, Serialize)]
+	pub struct Splice_initRequest {
+	    #[serde(skip_serializing_if = "Option::is_none")]
+	    pub feerate_per_kw: Option<u32>,
+	    #[serde(skip_serializing_if = "Option::is_none")]
+	    pub force_feerate: Option<bool>,
+	    #[serde(skip_serializing_if = "Option::is_none")]
+	    pub initialpsbt: Option<String>,
+	    pub channel_id: Sha256,
+	    pub relative_amount: i64,
+	}
+
+	impl From<Splice_initRequest> for Request {
+	    fn from(r: Splice_initRequest) -> Self {
+	        Request::Splice_Init(r)
+	    }
+	}
+
+	impl IntoRequest for Splice_initRequest {
+	    type Response = super::responses::Splice_initResponse;
+	}
+
+	impl TypedRequest for Splice_initRequest {
+	    type Response = super::responses::Splice_initResponse;
+
+	    fn method(&self) -> &str {
+	        "splice_init"
+	    }
+	}
+	#[derive(Clone, Debug, Deserialize, Serialize)]
+	pub struct Splice_signedRequest {
+	    #[serde(skip_serializing_if = "Option::is_none")]
+	    pub sign_first: Option<bool>,
+	    pub channel_id: Sha256,
+	    pub psbt: String,
+	}
+
+	impl From<Splice_signedRequest> for Request {
+	    fn from(r: Splice_signedRequest) -> Self {
+	        Request::Splice_Signed(r)
+	    }
+	}
+
+	impl IntoRequest for Splice_signedRequest {
+	    type Response = super::responses::Splice_signedResponse;
+	}
+
+	impl TypedRequest for Splice_signedRequest {
+	    type Response = super::responses::Splice_signedResponse;
+
+	    fn method(&self) -> &str {
+	        "splice_signed"
+	    }
+	}
+	#[derive(Clone, Debug, Deserialize, Serialize)]
+	pub struct Splice_updateRequest {
+	    pub channel_id: Sha256,
+	    pub psbt: String,
+	}
+
+	impl From<Splice_updateRequest> for Request {
+	    fn from(r: Splice_updateRequest) -> Self {
+	        Request::Splice_Update(r)
+	    }
+	}
+
+	impl IntoRequest for Splice_updateRequest {
+	    type Response = super::responses::Splice_updateResponse;
+	}
+
+	impl TypedRequest for Splice_updateRequest {
+	    type Response = super::responses::Splice_updateResponse;
+
+	    fn method(&self) -> &str {
+	        "splice_update"
 	    }
 	}
 	#[derive(Clone, Debug, Deserialize, Serialize)]
@@ -6350,6 +6433,56 @@ pub mod responses {
 	    fn try_from(response: Response) -> Result<Self, Self::Error> {
 	        match response {
 	            Response::SignMessage(response) => Ok(response),
+	            _ => Err(TryFromResponseError)
+	        }
+	    }
+	}
+
+	#[derive(Clone, Debug, Deserialize, Serialize)]
+	pub struct Splice_initResponse {
+	    pub psbt: String,
+	}
+
+	impl TryFrom<Response> for Splice_initResponse {
+	    type Error = super::TryFromResponseError;
+
+	    fn try_from(response: Response) -> Result<Self, Self::Error> {
+	        match response {
+	            Response::Splice_Init(response) => Ok(response),
+	            _ => Err(TryFromResponseError)
+	        }
+	    }
+	}
+
+	#[derive(Clone, Debug, Deserialize, Serialize)]
+	pub struct Splice_signedResponse {
+	    pub tx: String,
+	    pub txid: String,
+	}
+
+	impl TryFrom<Response> for Splice_signedResponse {
+	    type Error = super::TryFromResponseError;
+
+	    fn try_from(response: Response) -> Result<Self, Self::Error> {
+	        match response {
+	            Response::Splice_Signed(response) => Ok(response),
+	            _ => Err(TryFromResponseError)
+	        }
+	    }
+	}
+
+	#[derive(Clone, Debug, Deserialize, Serialize)]
+	pub struct Splice_updateResponse {
+	    pub commitments_secured: bool,
+	    pub psbt: String,
+	}
+
+	impl TryFrom<Response> for Splice_updateResponse {
+	    type Error = super::TryFromResponseError;
+
+	    fn try_from(response: Response) -> Result<Self, Self::Error> {
+	        match response {
+	            Response::Splice_Update(response) => Ok(response),
 	            _ => Err(TryFromResponseError)
 	        }
 	    }

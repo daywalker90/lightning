@@ -334,6 +334,21 @@ class NodeStub(object):
                 request_serializer=node__pb2.SignmessageRequest.SerializeToString,
                 response_deserializer=node__pb2.SignmessageResponse.FromString,
                 )
+        self.Splice_Init = channel.unary_unary(
+                '/cln.Node/Splice_Init',
+                request_serializer=node__pb2.Splice_initRequest.SerializeToString,
+                response_deserializer=node__pb2.Splice_initResponse.FromString,
+                )
+        self.Splice_Signed = channel.unary_unary(
+                '/cln.Node/Splice_Signed',
+                request_serializer=node__pb2.Splice_signedRequest.SerializeToString,
+                response_deserializer=node__pb2.Splice_signedResponse.FromString,
+                )
+        self.Splice_Update = channel.unary_unary(
+                '/cln.Node/Splice_Update',
+                request_serializer=node__pb2.Splice_updateRequest.SerializeToString,
+                response_deserializer=node__pb2.Splice_updateResponse.FromString,
+                )
         self.WaitBlockHeight = channel.unary_unary(
                 '/cln.Node/WaitBlockHeight',
                 request_serializer=node__pb2.WaitblockheightRequest.SerializeToString,
@@ -758,6 +773,24 @@ class NodeServicer(object):
         context.set_details('Method not implemented!')
         raise NotImplementedError('Method not implemented!')
 
+    def Splice_Init(self, request, context):
+        """Missing associated documentation comment in .proto file."""
+        context.set_code(grpc.StatusCode.UNIMPLEMENTED)
+        context.set_details('Method not implemented!')
+        raise NotImplementedError('Method not implemented!')
+
+    def Splice_Signed(self, request, context):
+        """Missing associated documentation comment in .proto file."""
+        context.set_code(grpc.StatusCode.UNIMPLEMENTED)
+        context.set_details('Method not implemented!')
+        raise NotImplementedError('Method not implemented!')
+
+    def Splice_Update(self, request, context):
+        """Missing associated documentation comment in .proto file."""
+        context.set_code(grpc.StatusCode.UNIMPLEMENTED)
+        context.set_details('Method not implemented!')
+        raise NotImplementedError('Method not implemented!')
+
     def WaitBlockHeight(self, request, context):
         """Missing associated documentation comment in .proto file."""
         context.set_code(grpc.StatusCode.UNIMPLEMENTED)
@@ -1122,6 +1155,21 @@ def add_NodeServicer_to_server(servicer, server):
                     servicer.SignMessage,
                     request_deserializer=node__pb2.SignmessageRequest.FromString,
                     response_serializer=node__pb2.SignmessageResponse.SerializeToString,
+            ),
+            'Splice_Init': grpc.unary_unary_rpc_method_handler(
+                    servicer.Splice_Init,
+                    request_deserializer=node__pb2.Splice_initRequest.FromString,
+                    response_serializer=node__pb2.Splice_initResponse.SerializeToString,
+            ),
+            'Splice_Signed': grpc.unary_unary_rpc_method_handler(
+                    servicer.Splice_Signed,
+                    request_deserializer=node__pb2.Splice_signedRequest.FromString,
+                    response_serializer=node__pb2.Splice_signedResponse.SerializeToString,
+            ),
+            'Splice_Update': grpc.unary_unary_rpc_method_handler(
+                    servicer.Splice_Update,
+                    request_deserializer=node__pb2.Splice_updateRequest.FromString,
+                    response_serializer=node__pb2.Splice_updateResponse.SerializeToString,
             ),
             'WaitBlockHeight': grpc.unary_unary_rpc_method_handler(
                     servicer.WaitBlockHeight,
@@ -2253,6 +2301,57 @@ class Node(object):
         return grpc.experimental.unary_unary(request, target, '/cln.Node/SignMessage',
             node__pb2.SignmessageRequest.SerializeToString,
             node__pb2.SignmessageResponse.FromString,
+            options, channel_credentials,
+            insecure, call_credentials, compression, wait_for_ready, timeout, metadata)
+
+    @staticmethod
+    def Splice_Init(request,
+            target,
+            options=(),
+            channel_credentials=None,
+            call_credentials=None,
+            insecure=False,
+            compression=None,
+            wait_for_ready=None,
+            timeout=None,
+            metadata=None):
+        return grpc.experimental.unary_unary(request, target, '/cln.Node/Splice_Init',
+            node__pb2.Splice_initRequest.SerializeToString,
+            node__pb2.Splice_initResponse.FromString,
+            options, channel_credentials,
+            insecure, call_credentials, compression, wait_for_ready, timeout, metadata)
+
+    @staticmethod
+    def Splice_Signed(request,
+            target,
+            options=(),
+            channel_credentials=None,
+            call_credentials=None,
+            insecure=False,
+            compression=None,
+            wait_for_ready=None,
+            timeout=None,
+            metadata=None):
+        return grpc.experimental.unary_unary(request, target, '/cln.Node/Splice_Signed',
+            node__pb2.Splice_signedRequest.SerializeToString,
+            node__pb2.Splice_signedResponse.FromString,
+            options, channel_credentials,
+            insecure, call_credentials, compression, wait_for_ready, timeout, metadata)
+
+    @staticmethod
+    def Splice_Update(request,
+            target,
+            options=(),
+            channel_credentials=None,
+            call_credentials=None,
+            insecure=False,
+            compression=None,
+            wait_for_ready=None,
+            timeout=None,
+            metadata=None):
+        return grpc.experimental.unary_unary(request, target, '/cln.Node/Splice_Update',
+            node__pb2.Splice_updateRequest.SerializeToString,
+            node__pb2.Splice_updateResponse.FromString,
             options, channel_credentials,
             insecure, call_credentials, compression, wait_for_ready, timeout, metadata)
 

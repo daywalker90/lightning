@@ -1987,6 +1987,33 @@
         "SignpsbtResponse": {
             "SignPsbt.signed_psbt": 1
         },
+        "Splice_initRequest": {
+            "Splice_Init.channel_id": 1,
+            "Splice_Init.feerate_per_kw": 4,
+            "Splice_Init.force_feerate": 5,
+            "Splice_Init.initialpsbt": 3,
+            "Splice_Init.relative_amount": 2
+        },
+        "Splice_initResponse": {
+            "Splice_Init.psbt": 1
+        },
+        "Splice_signedRequest": {
+            "Splice_Signed.channel_id": 1,
+            "Splice_Signed.psbt": 2,
+            "Splice_Signed.sign_first": 3
+        },
+        "Splice_signedResponse": {
+            "Splice_Signed.tx": 1,
+            "Splice_Signed.txid": 2
+        },
+        "Splice_updateRequest": {
+            "Splice_Update.channel_id": 1,
+            "Splice_Update.psbt": 2
+        },
+        "Splice_updateResponse": {
+            "Splice_Update.commitments_secured": 2,
+            "Splice_Update.psbt": 1
+        },
         "StaticbackupResponse": {
             "StaticBackup.scb[]": 1
         },
@@ -6940,6 +6967,74 @@
             "deprecated": false
         },
         "SignPsbt.signonly[]": {
+            "added": "pre-v0.10.1",
+            "deprecated": false
+        },
+        "Splice_Init": {
+            "added": "pre-v0.10.1",
+            "deprecated": null
+        },
+        "Splice_Init.channel_id": {
+            "added": "pre-v0.10.1",
+            "deprecated": false
+        },
+        "Splice_Init.feerate_per_kw": {
+            "added": "pre-v0.10.1",
+            "deprecated": false
+        },
+        "Splice_Init.force_feerate": {
+            "added": "pre-v0.10.1",
+            "deprecated": false
+        },
+        "Splice_Init.initialpsbt": {
+            "added": "pre-v0.10.1",
+            "deprecated": false
+        },
+        "Splice_Init.psbt": {
+            "added": "pre-v0.10.1",
+            "deprecated": false
+        },
+        "Splice_Init.relative_amount": {
+            "added": "pre-v0.10.1",
+            "deprecated": false
+        },
+        "Splice_Signed": {
+            "added": "pre-v0.10.1",
+            "deprecated": null
+        },
+        "Splice_Signed.channel_id": {
+            "added": "pre-v0.10.1",
+            "deprecated": false
+        },
+        "Splice_Signed.psbt": {
+            "added": "pre-v0.10.1",
+            "deprecated": false
+        },
+        "Splice_Signed.sign_first": {
+            "added": "pre-v0.10.1",
+            "deprecated": false
+        },
+        "Splice_Signed.tx": {
+            "added": "pre-v0.10.1",
+            "deprecated": false
+        },
+        "Splice_Signed.txid": {
+            "added": "pre-v0.10.1",
+            "deprecated": false
+        },
+        "Splice_Update": {
+            "added": "pre-v0.10.1",
+            "deprecated": null
+        },
+        "Splice_Update.channel_id": {
+            "added": "pre-v0.10.1",
+            "deprecated": false
+        },
+        "Splice_Update.commitments_secured": {
+            "added": "pre-v0.10.1",
+            "deprecated": false
+        },
+        "Splice_Update.psbt": {
             "added": "pre-v0.10.1",
             "deprecated": false
         },

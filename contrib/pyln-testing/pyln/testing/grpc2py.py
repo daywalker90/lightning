@@ -1641,6 +1641,26 @@ def signmessage2py(m):
     })
 
 
+def splice_init2py(m):
+    return remove_default({
+        "psbt": m.psbt,  # PrimitiveField in generate_composite
+    })
+
+
+def splice_signed2py(m):
+    return remove_default({
+        "tx": hexlify(m.tx),  # PrimitiveField in generate_composite
+        "txid": hexlify(m.txid),  # PrimitiveField in generate_composite
+    })
+
+
+def splice_update2py(m):
+    return remove_default({
+        "commitments_secured": m.commitments_secured,  # PrimitiveField in generate_composite
+        "psbt": m.psbt,  # PrimitiveField in generate_composite
+    })
+
+
 def waitblockheight2py(m):
     return remove_default({
         "blockheight": m.blockheight,  # PrimitiveField in generate_composite

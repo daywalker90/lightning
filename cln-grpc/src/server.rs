@@ -2074,6 +2074,102 @@ async fn sign_message(
 
 }
 
+async fn splice_init(
+    &self,
+    request: tonic::Request<pb::SpliceInitRequest>,
+) -> Result<tonic::Response<pb::SpliceInitResponse>, tonic::Status> {
+    let req = request.into_inner();
+    let req: requests::Splice_initRequest = req.into();
+    debug!("Client asked for splice_init");
+    trace!("splice_init request: {:?}", req);
+    let mut rpc = ClnRpc::new(&self.rpc_path)
+        .await
+        .map_err(|e| Status::new(Code::Internal, e.to_string()))?;
+    let result = rpc.call(Request::Splice_Init(req))
+        .await
+        .map_err(|e| Status::new(
+           Code::Unknown,
+           format!("Error calling method Splice_Init: {:?}", e)))?;
+    match result {
+        Response::Splice_Init(r) => {
+           trace!("splice_init response: {:?}", r);
+           Ok(tonic::Response::new(r.into()))
+        },
+        r => Err(Status::new(
+            Code::Internal,
+            format!(
+                "Unexpected result {:?} to method call Splice_Init",
+                r
+            )
+        )),
+    }
+
+}
+
+async fn splice_signed(
+    &self,
+    request: tonic::Request<pb::SpliceSignedRequest>,
+) -> Result<tonic::Response<pb::SpliceSignedResponse>, tonic::Status> {
+    let req = request.into_inner();
+    let req: requests::Splice_signedRequest = req.into();
+    debug!("Client asked for splice_signed");
+    trace!("splice_signed request: {:?}", req);
+    let mut rpc = ClnRpc::new(&self.rpc_path)
+        .await
+        .map_err(|e| Status::new(Code::Internal, e.to_string()))?;
+    let result = rpc.call(Request::Splice_Signed(req))
+        .await
+        .map_err(|e| Status::new(
+           Code::Unknown,
+           format!("Error calling method Splice_Signed: {:?}", e)))?;
+    match result {
+        Response::Splice_Signed(r) => {
+           trace!("splice_signed response: {:?}", r);
+           Ok(tonic::Response::new(r.into()))
+        },
+        r => Err(Status::new(
+            Code::Internal,
+            format!(
+                "Unexpected result {:?} to method call Splice_Signed",
+                r
+            )
+        )),
+    }
+
+}
+
+async fn splice_update(
+    &self,
+    request: tonic::Request<pb::SpliceUpdateRequest>,
+) -> Result<tonic::Response<pb::SpliceUpdateResponse>, tonic::Status> {
+    let req = request.into_inner();
+    let req: requests::Splice_updateRequest = req.into();
+    debug!("Client asked for splice_update");
+    trace!("splice_update request: {:?}", req);
+    let mut rpc = ClnRpc::new(&self.rpc_path)
+        .await
+        .map_err(|e| Status::new(Code::Internal, e.to_string()))?;
+    let result = rpc.call(Request::Splice_Update(req))
+        .await
+        .map_err(|e| Status::new(
+           Code::Unknown,
+           format!("Error calling method Splice_Update: {:?}", e)))?;
+    match result {
+        Response::Splice_Update(r) => {
+           trace!("splice_update response: {:?}", r);
+           Ok(tonic::Response::new(r.into()))
+        },
+        r => Err(Status::new(
+            Code::Internal,
+            format!(
+                "Unexpected result {:?} to method call Splice_Update",
+                r
+            )
+        )),
+    }
+
+}
+
 async fn wait_block_height(
     &self,
     request: tonic::Request<pb::WaitblockheightRequest>,
