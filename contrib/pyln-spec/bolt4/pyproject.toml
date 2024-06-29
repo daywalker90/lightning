@@ -13,7 +13,7 @@ packages = [
 python = "^3.8"
 
 [tool.poetry.dev-dependencies]
-pyln-proto = "^0.10.2"
+pyln-proto = { path = "../../pyln-proto", develop = true}
 
 [build-system]
 requires = ["poetry-core>=1.0.0"]
