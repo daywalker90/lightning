@@ -104,9 +104,12 @@ static bool print_offer_amount(const struct bitcoin_blkid *chains,
 	 *     - MUST specify `offer_currency` `iso4217` as an ISO 4712 three-letter code.
 	 *     - MUST specify `offer_amount` in the currency unit adjusted by the ISO 4712
 	 *       exponent (e.g. USD cents).
+	 *   - MUST set `offer_description` to a complete description of the purpose
+	 *       of the payment.
 	 * - otherwise:
 	 *   - MUST NOT set `offer_amount`
 	 *   - MUST NOT set `offer_currency`
+	 *   - MAY set `offer_description`
 	 */
 	if (!iso4217) {
 		if (tal_count(chains) == 0)
@@ -454,9 +457,9 @@ static u64 get_offer_type(const char *name)
 		 *     1. type: 20 (`offer_quantity_max`)
 		 *     2. data:
 		 *         * [`tu64`:`max`]
-		 *     1. type: 22 (`offer_node_id`)
+		 *     1. type: 22 (`offer_issuer_id`)
 		 *     2. data:
-		 *         * [`point`:`node_id`]
+		 *         * [`point`:`id`]
 		 */
 		{ "offer_chains", 2 },
 		{ "offer_metadata", 4 },
@@ -468,7 +471,7 @@ static u64 get_offer_type(const char *name)
 		{ "offer_paths", 16 },
 		{ "offer_issuer", 18 },
 		{ "offer_quantity_max", 20 },
-		{ "offer_node_id", 22 },
+		{ "offer_issuer_id", 22 },
 		/* BOLT-offers #12:
 		 * 1. `tlv_stream`: `invoice_request`
 		 * 2. types:
@@ -505,9 +508,9 @@ static u64 get_offer_type(const char *name)
 		 *     1. type: 20 (`offer_quantity_max`)
 		 *     2. data:
 		 *         * [`tu64`:`max`]
-		 *     1. type: 22 (`offer_node_id`)
+		 *     1. type: 22 (`offer_issuer_id`)
 		 *     2. data:
-		 *         * [`point`:`node_id`]
+		 *         * [`point`:`id`]
 		 *     1. type: 80 (`invreq_chain`)
 		 *     2. data:
 		 *         * [`chain_hash`:`chain`]
@@ -526,6 +529,9 @@ static u64 get_offer_type(const char *name)
 		 *     1. type: 89 (`invreq_payer_note`)
 		 *     2. data:
 		 *         * [`...*utf8`:`note`]
+		 *     1. type: 90 (`invreq_paths`)
+		 *     2. data:
+		 *         * [`...*blinded_path`:`paths`]
 		 *     1. type: 240 (`signature`)
 		 *     2. data:
 		 *         * [`bip340sig`:`sig`]
@@ -537,6 +543,7 @@ static u64 get_offer_type(const char *name)
 		 { "invreq_quantity", 86 },
 		 { "invreq_payer_id", 88 },
 		 { "invreq_payer_note", 89 },
+		 { "invreq_paths", 90 },
 		 { "signature", 240 },
 		/* BOLT-offers #12:
 		 * 1. `tlv_stream`: `invoice`
@@ -574,9 +581,9 @@ static u64 get_offer_type(const char *name)
 		 *     1. type: 20 (`offer_quantity_max`)
 		 *     2. data:
 		 *         * [`tu64`:`max`]
-		 *     1. type: 22 (`offer_node_id`)
+		 *     1. type: 22 (`offer_issuer_id`)
 		 *     2. data:
-		 *         * [`point`:`node_id`]
+		 *         * [`point`:`id`]
 		 *     1. type: 80 (`invreq_chain`)
 		 *     2. data:
 		 *         * [`chain_hash`:`chain`]
@@ -595,6 +602,9 @@ static u64 get_offer_type(const char *name)
 		 *     1. type: 89 (`invreq_payer_note`)
 		 *     2. data:
 		 *         * [`...*utf8`:`note`]
+		 *     1. type: 90 (`invreq_paths`)
+		 *     2. data:
+		 *         * [`...*blinded_path`:`paths`]
 		 *     1. type: 160 (`invoice_paths`)
 		 *     2. data:
 		 *         * [`...*blinded_path`:`paths`]
@@ -785,8 +795,16 @@ int main(int argc, char *argv[])
 			well_formed &= print_offer_amount(offer->offer_chains,
 							  offer->offer_currency,
 							  *offer->offer_amount);
-		if (must_have(offer, offer_description))
+		if (offer->offer_description)
 			well_formed &= print_utf8("offer_description", offer->offer_description);
+		/* BOLT-offers #12:
+		 *   - if `offer_amount` is set and `offer_description` is not set:
+		 *     - MUST NOT respond to the offer.
+		 */
+		if (offer->offer_amount && !offer->offer_description) {
+			fprintf(stderr, "Missing offer_description (with offer_amount)\n");
+			well_formed = false;
+		}
 		if (offer->offer_features)
 			print_features("offer_features", offer->offer_features);
 		if (offer->offer_absolute_expiry)
@@ -797,8 +815,17 @@ int main(int argc, char *argv[])
 			well_formed &= print_utf8("offer_issuer", offer->offer_issuer);
 		if (offer->offer_quantity_max)
 			print_u64("offer_quantity_max", *offer->offer_quantity_max);
-		if (must_have(offer, offer_node_id))
-			print_node_id("offer_node_id", offer->offer_node_id);
+		if (offer->offer_issuer_id)
+			print_node_id("offer_issuer_id", offer->offer_issuer_id);
+		/* BOLT-offers #12:
+		 *
+		 *   - if neither `offer_issuer_id` nor `offer_paths` are set:
+		 *     - MUST NOT respond to the offer.
+		 */
+		if (!offer->offer_issuer_id && !offer->offer_paths) {
+			fprintf(stderr, "Missing offer_issuer_id and offer_paths\n");
+			well_formed = false;
+		}
 		if (offer->offer_recurrence)
 			well_formed &= print_recurrance(offer->offer_recurrence,
 							offer->offer_recurrence_paywindow,
@@ -814,7 +841,7 @@ int main(int argc, char *argv[])
 		if (!invreq)
 			errx(ERROR_BAD_DECODE, "Bad invreq: %s", fail);
 
-		if (invreq->offer_node_id) {
+		if (invreq->offer_issuer_id) {
 			invreq_offer_id(invreq, &offer_id);
 			print_hash("offer_id", &offer_id);
 		}
@@ -836,14 +863,14 @@ int main(int argc, char *argv[])
 			print_features("offer_features", invreq->offer_features);
 		if (invreq->offer_absolute_expiry)
 			print_abstime("offer_absolute_expiry", *invreq->offer_absolute_expiry);
-		if (must_have(invreq, offer_paths))
+		if (invreq->offer_paths)
 			print_blindedpaths("offer_paths", invreq->offer_paths, NULL);
 		if (invreq->offer_issuer)
 			well_formed &= print_utf8("offer_issuer", invreq->offer_issuer);
 		if (invreq->offer_quantity_max)
 			print_u64("offer_quantity_max", *invreq->offer_quantity_max);
-		if (invreq->offer_node_id)
-			print_node_id("offer_node_id", invreq->offer_node_id);
+		if (invreq->offer_issuer_id)
+			print_node_id("offer_issuer_id", invreq->offer_issuer_id);
 		if (invreq->offer_recurrence)
 			well_formed &= print_recurrance(invreq->offer_recurrence,
 							invreq->offer_recurrence_paywindow,
@@ -867,6 +894,8 @@ int main(int argc, char *argv[])
 		} else {
 			must_not_have(invreq, invreq_recurrence_start);
 		}
+		if (invreq->invreq_paths)
+			print_blindedpaths("invreq_paths", invreq->invreq_paths, NULL);
 		if (must_have(invreq, signature)) {
 			well_formed = print_signature("invoice_request",
 						      "signature",
@@ -885,7 +914,7 @@ int main(int argc, char *argv[])
 			errx(ERROR_BAD_DECODE, "Bad invoice: %s", fail);
 
 		if (invoice->invreq_payer_id) {
-			if (invoice->offer_node_id) {
+			if (invoice->offer_issuer_id) {
 				invoice_offer_id(invoice, &offer_id);
 				print_hash("offer_id", &offer_id);
 			}
@@ -908,14 +937,14 @@ int main(int argc, char *argv[])
 			print_features("offer_features", invoice->offer_features);
 		if (invoice->offer_absolute_expiry)
 			print_abstime("offer_absolute_expiry", *invoice->offer_absolute_expiry);
-		if (must_have(invoice, offer_paths))
+		if (invoice->offer_paths)
 			print_blindedpaths("offer_paths", invoice->offer_paths, NULL);
 		if (invoice->offer_issuer)
 			well_formed &= print_utf8("offer_issuer", invoice->offer_issuer);
 		if (invoice->offer_quantity_max)
 			print_u64("offer_quantity_max", *invoice->offer_quantity_max);
-		if (invoice->offer_node_id)
-			print_node_id("offer_node_id", invoice->offer_node_id);
+		if (invoice->offer_issuer_id)
+			print_node_id("offer_issuer_id", invoice->offer_issuer_id);
 		if (invoice->offer_recurrence)
 			well_formed &= print_recurrance(invoice->offer_recurrence,
 							invoice->offer_recurrence_paywindow,
@@ -940,6 +969,8 @@ int main(int argc, char *argv[])
 		} else {
 			must_not_have(invoice, invreq_recurrence_start);
 		}
+		if (invoice->invreq_paths)
+			print_blindedpaths("invreq_paths", invoice->invreq_paths, NULL);
 		if (must_have(invoice, invoice_paths))
 			print_blindedpaths("invoice_paths",
 					   invoice->invoice_paths,

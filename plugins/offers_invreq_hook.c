@@ -6,9 +6,9 @@
 #include <ccan/tal/str/str.h>
 #include <common/bech32_util.h>
 #include <common/blindedpath.h>
+#include <common/bolt12_id.h>
 #include <common/bolt12_merkle.h>
 #include <common/gossmap.h>
-#include <common/invoice_path_id.h>
 #include <common/iso4217.h>
 #include <common/json_stream.h>
 #include <common/memleak.h>
@@ -301,9 +301,9 @@ static struct command_result *found_best_peer(struct command *cmd,
 		etlvs[0]->payment_constraints->htlc_minimum_msat = best->htlc_min.millisatoshis; /* Raw: tlv */
 
 		/* So we recognize this payment */
-		etlvs[1]->path_id = invoice_path_id(etlvs[1],
-						    &invoicesecret_base,
-						    ir->inv->invoice_payment_hash);
+		etlvs[1]->path_id = bolt12_path_id(etlvs[1],
+						   &invoicesecret_base,
+						   ir->inv->invoice_payment_hash);
 
 		ir->inv->invoice_paths = tal_arr(ir->inv, struct blinded_path *, 1);
 		ir->inv->invoice_paths[0]
@@ -791,7 +791,7 @@ static struct command_result *listoffers_done(struct command *cmd,
 	offertok = arr + 1;
 	if (ir->secret) {
 		struct sha256 offer_id;
-		const u8 *blinding_path_secret;
+		struct secret blinding_path_secret;
 		struct blinded_path **offer_paths;
 
 		if (!ir->invreq->offer_paths) {
@@ -805,10 +805,9 @@ static struct command_result *listoffers_done(struct command *cmd,
 		ir->invreq->offer_paths = NULL;
 		invreq_offer_id(ir->invreq, &offer_id);
 		ir->invreq->offer_paths = offer_paths;
-		blinding_path_secret = invoice_path_id(tmpctx,
-						       &offerblinding_base, &offer_id);
-		if (!memeq(ir->secret, tal_bytelen(ir->secret),
-			   blinding_path_secret, tal_bytelen(blinding_path_secret))) {
+		bolt12_path_secret(&offerblinding_base, &offer_id,
+				   &blinding_path_secret);
+		if (!secret_eq_consttime(ir->secret, &blinding_path_secret)) {
 			/* You used the wrong blinded path for invreq */
 			if (command_dev_apis(cmd))
 				return fail_invreq(cmd, ir, "Wrong blinded path");
@@ -930,11 +929,11 @@ static struct command_result *listoffers_done(struct command *cmd,
 	assert(ir->inv->invreq_payer_id);
 
 	/* BOLT-offers #12:
-	 *   - if `offer_node_id` is present:
-	 *     - MUST set `invoice_node_id` to `offer_node_id`.
+	 *   - if `offer_issuer_id` is present:
+	 *     - MUST set `invoice_node_id` to the `offer_issuer_id`
 	 */
-	/* We always provide an offer_node_id! */
-	ir->inv->invoice_node_id = ir->inv->offer_node_id;
+	/* FIXME: We always provide an offer_issuer_id! */
+	ir->inv->invoice_node_id = ir->inv->offer_issuer_id;
 
 	/* BOLT-offers #12:
 	 * - MUST set `invoice_created_at` to the number of seconds since
@@ -1048,16 +1047,16 @@ struct command_result *handle_invoice_request(struct command *cmd,
 
 	/* BOLT-offers #12:
 	 *
-	 * - otherwise (no `offer_node_id`, not a response to our offer):
+	 * - otherwise (no `offer_issuer_id` or `offer_paths`, not a response to our offer):
 	 */
 	/* FIXME-OFFERS: handle this! */
-	if (!ir->invreq->offer_node_id) {
+	if (!ir->invreq->offer_issuer_id && !ir->invreq->offer_paths) {
 		return fail_invreq(cmd, ir, "Not based on an offer");
 	}
 
 	/* BOLT-offers #12:
 	 *
-	 * - if `offer_node_id` is present (response to an offer):
+	 * - if `offer_issuer_id` or `offer_paths` are present (response to an offer):
 	 *   - MUST fail the request if the offer fields do not exactly match a
 	 *     valid, unexpired offer.
 	 */

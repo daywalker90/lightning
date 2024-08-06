@@ -907,6 +907,17 @@
             "Decode.invoice_paths[].path[].blinded_node_id": 1,
             "Decode.invoice_paths[].path[].encrypted_recipient_data": 2
         },
+        "DecodeInvreq_paths": {
+            "Decode.invreq_paths[].blinding": 2,
+            "Decode.invreq_paths[].first_node_id": 3,
+            "Decode.invreq_paths[].first_scid": 4,
+            "Decode.invreq_paths[].first_scid_dir": 1,
+            "Decode.invreq_paths[].path[]": 5
+        },
+        "DecodeInvreq_pathsPath": {
+            "Decode.invreq_paths[].path[].blinded_node_id": 1,
+            "Decode.invreq_paths[].path[].encrypted_recipient_data": 2
+        },
         "DecodeOffer_paths": {
             "Decode.offer_paths[].blinding": 2,
             "Decode.offer_paths[].first_node_id": 1,
@@ -948,6 +959,7 @@
             "Decode.invreq_chain": 27,
             "Decode.invreq_features": 29,
             "Decode.invreq_metadata": 25,
+            "Decode.invreq_paths[]": 85,
             "Decode.invreq_payer_id": 26,
             "Decode.invreq_payer_note": 31,
             "Decode.invreq_quantity": 30,
@@ -963,6 +975,7 @@
             "Decode.offer_features": 13,
             "Decode.offer_id": 3,
             "Decode.offer_issuer": 12,
+            "Decode.offer_issuer_id": 83,
             "Decode.offer_metadata": 5,
             "Decode.offer_node_id": 17,
             "Decode.offer_paths[]": 16,
@@ -984,6 +997,7 @@
             "Decode.unknown_offer_tlvs[]": 19,
             "Decode.valid": 2,
             "Decode.version": 71,
+            "Decode.warning_empty_blinded_path": 86,
             "Decode.warning_invalid_invoice_request_signature": 39,
             "Decode.warning_invalid_invoice_signature": 58,
             "Decode.warning_invalid_invreq_payer_note": 37,
@@ -1002,6 +1016,7 @@
             "Decode.warning_missing_invreq_metadata": 35,
             "Decode.warning_missing_invreq_payer_id": 36,
             "Decode.warning_missing_offer_description": 22,
+            "Decode.warning_missing_offer_issuer_id": 84,
             "Decode.warning_missing_offer_node_id": 20,
             "Decode.warning_rune_invalid_utf8": 74,
             "Decode.warning_unknown_offer_currency": 7
@@ -4489,6 +4504,38 @@
             "added": "pre-v0.10.1",
             "deprecated": null
         },
+        "Decode.invreq_paths[]": {
+            "added": "v24.08",
+            "deprecated": null
+        },
+        "Decode.invreq_paths[].blinding": {
+            "added": "v24.08",
+            "deprecated": null
+        },
+        "Decode.invreq_paths[].first_node_id": {
+            "added": "v24.08",
+            "deprecated": null
+        },
+        "Decode.invreq_paths[].first_scid": {
+            "added": "v24.08",
+            "deprecated": null
+        },
+        "Decode.invreq_paths[].first_scid_dir": {
+            "added": "v24.08",
+            "deprecated": null
+        },
+        "Decode.invreq_paths[].path[]": {
+            "added": "v24.08",
+            "deprecated": null
+        },
+        "Decode.invreq_paths[].path[].blinded_node_id": {
+            "added": "v24.08",
+            "deprecated": null
+        },
+        "Decode.invreq_paths[].path[].encrypted_recipient_data": {
+            "added": "v24.08",
+            "deprecated": null
+        },
         "Decode.invreq_payer_id": {
             "added": "pre-v0.10.1",
             "deprecated": null
@@ -4549,13 +4596,17 @@
             "added": "pre-v0.10.1",
             "deprecated": null
         },
+        "Decode.offer_issuer_id": {
+            "added": "v24.08",
+            "deprecated": null
+        },
         "Decode.offer_metadata": {
             "added": "pre-v0.10.1",
             "deprecated": null
         },
         "Decode.offer_node_id": {
             "added": "pre-v0.10.1",
-            "deprecated": null
+            "deprecated": "v24.08"
         },
         "Decode.offer_paths[]": {
             "added": "pre-v0.10.1",
@@ -4765,6 +4816,10 @@
             "added": "pre-v0.10.1",
             "deprecated": null
         },
+        "Decode.warning_empty_blinded_path": {
+            "added": "v24.08",
+            "deprecated": null
+        },
         "Decode.warning_invalid_invoice_request_signature": {
             "added": "pre-v0.10.1",
             "deprecated": null
@@ -4837,9 +4892,13 @@
             "added": "pre-v0.10.1",
             "deprecated": null
         },
+        "Decode.warning_missing_offer_issuer_id": {
+            "added": "v24.08",
+            "deprecated": null
+        },
         "Decode.warning_missing_offer_node_id": {
             "added": "pre-v0.10.1",
-            "deprecated": null
+            "deprecated": "v24.08"
         },
         "Decode.warning_rune_invalid_utf8": {
             "added": "pre-v0.10.1",

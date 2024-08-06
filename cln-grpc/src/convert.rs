@@ -1484,6 +1484,30 @@ impl From<responses::DecodeInvoice_fallbacks> for pb::DecodeInvoiceFallbacks {
 }
 
 #[allow(unused_variables)]
+impl From<responses::DecodeInvreq_pathsPath> for pb::DecodeInvreqPathsPath {
+    fn from(c: responses::DecodeInvreq_pathsPath) -> Self {
+        Self {
+            blinded_node_id: c.blinded_node_id.serialize().to_vec(), // Rule #2 for type pubkey
+            encrypted_recipient_data: hex::decode(&c.encrypted_recipient_data).unwrap(), // Rule #2 for type hex
+        }
+    }
+}
+
+#[allow(unused_variables)]
+impl From<responses::DecodeInvreq_paths> for pb::DecodeInvreqPaths {
+    fn from(c: responses::DecodeInvreq_paths) -> Self {
+        Self {
+            blinding: c.blinding.serialize().to_vec(), // Rule #2 for type pubkey
+            first_node_id: c.first_node_id.map(|v| v.serialize().to_vec()), // Rule #2 for type pubkey?
+            first_scid: c.first_scid.map(|v| v.to_string()), // Rule #2 for type short_channel_id?
+            first_scid_dir: c.first_scid_dir, // Rule #2 for type u32?
+            // Field: Decode.invreq_paths[].path[]
+            path: c.path.into_iter().map(|i| i.into()).collect(), // Rule #3 for type DecodeInvreq_pathsPath
+        }
+    }
+}
+
+#[allow(unused_variables)]
 impl From<responses::DecodeOffer_paths> for pb::DecodeOfferPaths {
     fn from(c: responses::DecodeOffer_paths) -> Self {
         Self {
@@ -1506,7 +1530,7 @@ impl From<responses::DecodeRestrictions> for pb::DecodeRestrictions {
     }
 }
 
-#[allow(unused_variables)]
+#[allow(unused_variables,deprecated)]
 impl From<responses::DecodeResponse> for pb::DecodeResponse {
     fn from(c: responses::DecodeResponse) -> Self {
         Self {
@@ -1537,6 +1561,8 @@ impl From<responses::DecodeResponse> for pb::DecodeResponse {
             invreq_chain: c.invreq_chain.map(|v| hex::decode(v).unwrap()), // Rule #2 for type hex?
             invreq_features: c.invreq_features.map(|v| hex::decode(v).unwrap()), // Rule #2 for type hex?
             invreq_metadata: c.invreq_metadata.map(|v| hex::decode(v).unwrap()), // Rule #2 for type hex?
+            // Field: Decode.invreq_paths[]
+            invreq_paths: c.invreq_paths.map(|arr| arr.into_iter().map(|i| i.into()).collect()).unwrap_or(vec![]), // Rule #3
             invreq_payer_id: c.invreq_payer_id.map(|v| hex::decode(v).unwrap()), // Rule #2 for type hex?
             invreq_payer_note: c.invreq_payer_note, // Rule #2 for type string?
             invreq_quantity: c.invreq_quantity, // Rule #2 for type u64?
@@ -1553,7 +1579,9 @@ impl From<responses::DecodeResponse> for pb::DecodeResponse {
             offer_features: c.offer_features.map(|v| hex::decode(v).unwrap()), // Rule #2 for type hex?
             offer_id: c.offer_id.map(|v| hex::decode(v).unwrap()), // Rule #2 for type hex?
             offer_issuer: c.offer_issuer, // Rule #2 for type string?
+            offer_issuer_id: c.offer_issuer_id.map(|v| v.serialize().to_vec()), // Rule #2 for type pubkey?
             offer_metadata: c.offer_metadata.map(|v| hex::decode(v).unwrap()), // Rule #2 for type hex?
+            #[allow(deprecated)]
             offer_node_id: c.offer_node_id.map(|v| v.serialize().to_vec()), // Rule #2 for type pubkey?
             // Field: Decode.offer_paths[]
             offer_paths: c.offer_paths.map(|arr| arr.into_iter().map(|i| i.into()).collect()).unwrap_or(vec![]), // Rule #3
@@ -1571,6 +1599,7 @@ impl From<responses::DecodeResponse> for pb::DecodeResponse {
             unique_id: c.unique_id, // Rule #2 for type string?
             valid: c.valid, // Rule #2 for type boolean
             version: c.version, // Rule #2 for type string?
+            warning_empty_blinded_path: c.warning_empty_blinded_path, // Rule #2 for type string?
             warning_invalid_invoice_request_signature: c.warning_invalid_invoice_request_signature, // Rule #2 for type string?
             warning_invalid_invoice_signature: c.warning_invalid_invoice_signature, // Rule #2 for type string?
             warning_invalid_invreq_payer_note: c.warning_invalid_invreq_payer_note, // Rule #2 for type string?
@@ -1589,6 +1618,8 @@ impl From<responses::DecodeResponse> for pb::DecodeResponse {
             warning_missing_invreq_metadata: c.warning_missing_invreq_metadata, // Rule #2 for type string?
             warning_missing_invreq_payer_id: c.warning_missing_invreq_payer_id, // Rule #2 for type string?
             warning_missing_offer_description: c.warning_missing_offer_description, // Rule #2 for type string?
+            warning_missing_offer_issuer_id: c.warning_missing_offer_issuer_id, // Rule #2 for type string?
+            #[allow(deprecated)]
             warning_missing_offer_node_id: c.warning_missing_offer_node_id, // Rule #2 for type string?
             warning_rune_invalid_utf8: c.warning_rune_invalid_utf8, // Rule #2 for type string?
             warning_unknown_offer_currency: c.warning_unknown_offer_currency, // Rule #2 for type string?

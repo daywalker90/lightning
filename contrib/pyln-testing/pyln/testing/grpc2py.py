@@ -1165,6 +1165,23 @@ def decode_invoice_paths2py(m):
     })
 
 
+def decode_invreq_paths_path2py(m):
+    return remove_default({
+        "blinded_node_id": hexlify(m.blinded_node_id),  # PrimitiveField in generate_composite
+        "encrypted_recipient_data": hexlify(m.encrypted_recipient_data),  # PrimitiveField in generate_composite
+    })
+
+
+def decode_invreq_paths2py(m):
+    return remove_default({
+        "path": [decode_invreq_paths_path2py(i) for i in m.path],  # ArrayField[composite] in generate_composite
+        "blinding": hexlify(m.blinding),  # PrimitiveField in generate_composite
+        "first_node_id": hexlify(m.first_node_id),  # PrimitiveField in generate_composite
+        "first_scid": m.first_scid,  # PrimitiveField in generate_composite
+        "first_scid_dir": m.first_scid_dir,  # PrimitiveField in generate_composite
+    })
+
+
 def decode_offer_paths_path2py(m):
     return remove_default({
         "blinded_node_id": hexlify(m.blinded_node_id),  # PrimitiveField in generate_composite
@@ -1238,6 +1255,7 @@ def decode2py(m):
         "fallbacks": [decode_fallbacks2py(i) for i in m.fallbacks],  # ArrayField[composite] in generate_composite
         "invoice_fallbacks": [decode_invoice_fallbacks2py(i) for i in m.invoice_fallbacks],  # ArrayField[composite] in generate_composite
         "invoice_paths": [decode_invoice_paths2py(i) for i in m.invoice_paths],  # ArrayField[composite] in generate_composite
+        "invreq_paths": [decode_invreq_paths2py(i) for i in m.invreq_paths],  # ArrayField[composite] in generate_composite
         "offer_chains": [hexlify(m.offer_chains) for i in hexlify(m.offer_chains)], # ArrayField[primitive] in generate_composite
         "offer_paths": [decode_offer_paths2py(i) for i in m.offer_paths],  # ArrayField[composite] in generate_composite
         "restrictions": [decode_restrictions2py(i) for i in m.restrictions],  # ArrayField[composite] in generate_composite
@@ -1280,6 +1298,7 @@ def decode2py(m):
         "offer_features": hexlify(m.offer_features),  # PrimitiveField in generate_composite
         "offer_id": hexlify(m.offer_id),  # PrimitiveField in generate_composite
         "offer_issuer": m.offer_issuer,  # PrimitiveField in generate_composite
+        "offer_issuer_id": hexlify(m.offer_issuer_id),  # PrimitiveField in generate_composite
         "offer_metadata": hexlify(m.offer_metadata),  # PrimitiveField in generate_composite
         "offer_node_id": hexlify(m.offer_node_id),  # PrimitiveField in generate_composite
         "offer_quantity_max": m.offer_quantity_max,  # PrimitiveField in generate_composite
@@ -1293,6 +1312,7 @@ def decode2py(m):
         "unique_id": m.unique_id,  # PrimitiveField in generate_composite
         "valid": m.valid,  # PrimitiveField in generate_composite
         "version": m.version,  # PrimitiveField in generate_composite
+        "warning_empty_blinded_path": m.warning_empty_blinded_path,  # PrimitiveField in generate_composite
         "warning_invalid_invoice_request_signature": m.warning_invalid_invoice_request_signature,  # PrimitiveField in generate_composite
         "warning_invalid_invoice_signature": m.warning_invalid_invoice_signature,  # PrimitiveField in generate_composite
         "warning_invalid_invreq_payer_note": m.warning_invalid_invreq_payer_note,  # PrimitiveField in generate_composite
@@ -1311,6 +1331,7 @@ def decode2py(m):
         "warning_missing_invreq_metadata": m.warning_missing_invreq_metadata,  # PrimitiveField in generate_composite
         "warning_missing_invreq_payer_id": m.warning_missing_invreq_payer_id,  # PrimitiveField in generate_composite
         "warning_missing_offer_description": m.warning_missing_offer_description,  # PrimitiveField in generate_composite
+        "warning_missing_offer_issuer_id": m.warning_missing_offer_issuer_id,  # PrimitiveField in generate_composite
         "warning_missing_offer_node_id": m.warning_missing_offer_node_id,  # PrimitiveField in generate_composite
         "warning_rune_invalid_utf8": m.warning_rune_invalid_utf8,  # PrimitiveField in generate_composite
         "warning_unknown_offer_currency": m.warning_unknown_offer_currency,  # PrimitiveField in generate_composite

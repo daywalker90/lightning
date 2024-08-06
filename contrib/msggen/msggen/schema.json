@@ -5562,8 +5562,7 @@
             },
             "then": {
               "required": [
-                "offer_id",
-                "offer_node_id"
+                "offer_id"
               ],
               "additionalProperties": false,
               "properties": {
@@ -5727,10 +5726,28 @@
                     }
                   }
                 },
+                "warning_empty_blinded_path": {
+                  "added": "v24.08",
+                  "type": "string",
+                  "description": [
+                    "The blinded path has 0 hops."
+                  ]
+                },
                 "offer_node_id": {
                   "type": "pubkey",
+                  "deprecated": [
+                    "v24.08",
+                    "v24.11"
+                  ],
                   "description": [
-                    "Public key of the offering node."
+                    "Obsolete name for offer_issuer_id."
+                  ]
+                },
+                "offer_issuer_id": {
+                  "type": "pubkey",
+                  "added": "v24.08",
+                  "description": [
+                    "The pubkey associated with the offer (can be a node id)."
                   ]
                 },
                 "offer_recurrence": {
@@ -5898,8 +5915,19 @@
                 "recurrence": {},
                 "warning_missing_offer_node_id": {
                   "type": "string",
+                  "deprecated": [
+                    "v24.08",
+                    "v24.11"
+                  ],
                   "description": [
                     "`offer_node_id` is not present."
+                  ]
+                },
+                "warning_missing_offer_issuer_id": {
+                  "type": "string",
+                  "added": "v24.08",
+                  "description": [
+                    "`offer_issuer_id` is not present and there are no offer_paths"
                   ]
                 },
                 "warning_invalid_offer_description": {
@@ -5948,7 +5976,6 @@
             },
             "then": {
               "required": [
-                "offer_node_id",
                 "invreq_metadata",
                 "invreq_payer_id",
                 "signature"
@@ -6119,8 +6146,19 @@
                 },
                 "offer_node_id": {
                   "type": "pubkey",
+                  "deprecated": [
+                    "v24.08",
+                    "v24.11"
+                  ],
                   "description": [
                     "Public key of the offering node."
+                  ]
+                },
+                "offer_issuer_id": {
+                  "type": "pubkey",
+                  "added": "v24.08",
+                  "description": [
+                    "Public key of the offering node (can be a node id)."
                   ]
                 },
                 "offer_recurrence": {
@@ -6251,6 +6289,82 @@
                     "A note attached by the payer."
                   ]
                 },
+                "invreq_paths": {
+                  "type": "array",
+                  "added": "v24.08",
+                  "description": [
+                    "Paths to the destination."
+                  ],
+                  "items": {
+                    "type": "object",
+                    "required": [
+                      "blinding",
+                      "path"
+                    ],
+                    "additionalProperties": false,
+                    "properties": {
+                      "first_node_id": {
+                        "added": "v24.08",
+                        "type": "pubkey",
+                        "description": [
+                          "The (presumably well-known) public key of the start of the path."
+                        ]
+                      },
+                      "first_scid": {
+                        "added": "v24.08",
+                        "type": "short_channel_id",
+                        "description": [
+                          "the short channel id of the start of the path (alternative to first_node_id)"
+                        ]
+                      },
+                      "first_scid_dir": {
+                        "added": "v24.08",
+                        "type": "u32",
+                        "description": [
+                          "which end of the first_scid is the start of the path"
+                        ]
+                      },
+                      "blinding": {
+                        "added": "v24.08",
+                        "type": "pubkey",
+                        "description": [
+                          "Blinding factor for this path."
+                        ]
+                      },
+                      "path": {
+                        "type": "array",
+                        "added": "v24.08",
+                        "description": [
+                          "An individual path."
+                        ],
+                        "items": {
+                          "type": "object",
+                          "required": [
+                            "blinded_node_id",
+                            "encrypted_recipient_data"
+                          ],
+                          "additionalProperties": false,
+                          "properties": {
+                            "blinded_node_id": {
+                              "added": "v24.08",
+                              "type": "pubkey",
+                              "description": [
+                                "Node_id of the hop."
+                              ]
+                            },
+                            "encrypted_recipient_data": {
+                              "added": "v24.08",
+                              "type": "hex",
+                              "description": [
+                                "Encrypted TLV entry for this hop."
+                              ]
+                            }
+                          }
+                        }
+                      }
+                    }
+                  }
+                },
                 "invreq_recurrence_counter": {
                   "type": "u32",
                   "description": [
@@ -6345,6 +6459,7 @@
                 "offer_quantity_max": {},
                 "offer_paths": {},
                 "offer_node_id": {},
+                "offer_issuer_id": {},
                 "offer_recurrence": {},
                 "invreq_metadata": {},
                 "invreq_payer_id": {},
@@ -6353,6 +6468,7 @@
                 "invreq_features": {},
                 "invreq_quantity": {},
                 "invreq_payer_note": {},
+                "invreq_paths": {},
                 "invreq_recurrence_counter": {},
                 "invreq_recurrence_start": {},
                 "warning_invalid_offer_description": {
@@ -6431,7 +6547,6 @@
             },
             "then": {
               "required": [
-                "offer_node_id",
                 "invreq_metadata",
                 "invreq_payer_id",
                 "invoice_paths",
@@ -6606,8 +6721,19 @@
                 },
                 "offer_node_id": {
                   "type": "pubkey",
+                  "deprecated": [
+                    "v24.08",
+                    "v24.11"
+                  ],
                   "description": [
                     "Public key of the offering node."
+                  ]
+                },
+                "offer_issuer_id": {
+                  "type": "pubkey",
+                  "added": "v24.08",
+                  "description": [
+                    "Public key of the offering node (can be a node id)."
                   ]
                 },
                 "offer_recurrence": {
@@ -6737,6 +6863,82 @@
                   "description": [
                     "A note attached by the payer."
                   ]
+                },
+                "invreq_paths": {
+                  "type": "array",
+                  "added": "v24.08",
+                  "description": [
+                    "Paths to the destination."
+                  ],
+                  "items": {
+                    "type": "object",
+                    "required": [
+                      "blinding",
+                      "path"
+                    ],
+                    "additionalProperties": false,
+                    "properties": {
+                      "first_node_id": {
+                        "added": "v24.08",
+                        "type": "pubkey",
+                        "description": [
+                          "The (presumably well-known) public key of the start of the path."
+                        ]
+                      },
+                      "first_scid": {
+                        "added": "v24.08",
+                        "type": "short_channel_id",
+                        "description": [
+                          "the short channel id of the start of the path (alternative to first_node_id)"
+                        ]
+                      },
+                      "first_scid_dir": {
+                        "added": "v24.08",
+                        "type": "u32",
+                        "description": [
+                          "which end of the first_scid is the start of the path"
+                        ]
+                      },
+                      "blinding": {
+                        "added": "v24.08",
+                        "type": "pubkey",
+                        "description": [
+                          "Blinding factor for this path."
+                        ]
+                      },
+                      "path": {
+                        "type": "array",
+                        "added": "v24.08",
+                        "description": [
+                          "An individual path."
+                        ],
+                        "items": {
+                          "type": "object",
+                          "required": [
+                            "blinded_node_id",
+                            "encrypted_recipient_data"
+                          ],
+                          "additionalProperties": false,
+                          "properties": {
+                            "blinded_node_id": {
+                              "added": "v24.08",
+                              "type": "pubkey",
+                              "description": [
+                                "Node_id of the hop."
+                              ]
+                            },
+                            "encrypted_recipient_data": {
+                              "added": "v24.08",
+                              "type": "hex",
+                              "description": [
+                                "Encrypted TLV entry for this hop."
+                              ]
+                            }
+                          }
+                        }
+                      }
+                    }
+                  }
                 },
                 "invreq_recurrence_counter": {
                   "type": "u32",
@@ -6926,7 +7128,7 @@
                 "invoice_node_id": {
                   "type": "pubkey",
                   "description": [
-                    "The id to pay (usually the same as offer_node_id)."
+                    "The id to pay (usually the same as offer_issuer_id)."
                   ]
                 },
                 "invoice_recurrence_basetime": {
@@ -6938,7 +7140,7 @@
                 "signature": {
                   "type": "bip340sig",
                   "description": [
-                    "BIP-340 signature of the `offer_node_id` on this invoice."
+                    "BIP-340 signature of the `offer_issuer_id` on this invoice."
                   ]
                 },
                 "unknown_invoice_tlvs": {
@@ -7017,6 +7219,7 @@
                 "offer_quantity_max": {},
                 "offer_paths": {},
                 "offer_node_id": {},
+                "offer_issuer_id": {},
                 "offer_recurrence": {},
                 "invreq_metadata": {},
                 "invreq_payer_id": {},
@@ -7025,6 +7228,7 @@
                 "invreq_features": {},
                 "invreq_quantity": {},
                 "invreq_payer_note": {},
+                "invreq_paths": {},
                 "invreq_node_id": {},
                 "invreq_recurrence_counter": {},
                 "invreq_recurrence_start": {},

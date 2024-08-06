@@ -6690,6 +6690,24 @@ pub mod responses {
 	}
 
 	#[derive(Clone, Debug, Deserialize, Serialize)]
+	pub struct DecodeInvreq_pathsPath {
+	    pub blinded_node_id: PublicKey,
+	    pub encrypted_recipient_data: String,
+	}
+
+	#[derive(Clone, Debug, Deserialize, Serialize)]
+	pub struct DecodeInvreq_paths {
+	    #[serde(skip_serializing_if = "Option::is_none")]
+	    pub first_node_id: Option<PublicKey>,
+	    #[serde(skip_serializing_if = "Option::is_none")]
+	    pub first_scid: Option<ShortChannelId>,
+	    #[serde(skip_serializing_if = "Option::is_none")]
+	    pub first_scid_dir: Option<u32>,
+	    pub blinding: PublicKey,
+	    pub path: Vec<DecodeInvreq_pathsPath>,
+	}
+
+	#[derive(Clone, Debug, Deserialize, Serialize)]
 	pub struct DecodeOffer_paths {
 	    #[serde(skip_serializing_if = "Option::is_none")]
 	    pub first_node_id: Option<PublicKey>,
@@ -6753,6 +6771,12 @@ pub mod responses {
 
 	#[derive(Clone, Debug, Deserialize, Serialize)]
 	pub struct DecodeResponse {
+	    #[deprecated]
+	    #[serde(skip_serializing_if = "Option::is_none")]
+	    pub offer_node_id: Option<PublicKey>,
+	    #[deprecated]
+	    #[serde(skip_serializing_if = "Option::is_none")]
+	    pub warning_missing_offer_node_id: Option<String>,
 	    #[serde(skip_serializing_if = "Option::is_none")]
 	    pub amount_msat: Option<Amount>,
 	    #[serde(skip_serializing_if = "Option::is_none")]
@@ -6824,9 +6848,9 @@ pub mod responses {
 	    #[serde(skip_serializing_if = "Option::is_none")]
 	    pub offer_issuer: Option<String>,
 	    #[serde(skip_serializing_if = "Option::is_none")]
-	    pub offer_metadata: Option<String>,
+	    pub offer_issuer_id: Option<PublicKey>,
 	    #[serde(skip_serializing_if = "Option::is_none")]
-	    pub offer_node_id: Option<PublicKey>,
+	    pub offer_metadata: Option<String>,
 	    #[serde(skip_serializing_if = "Option::is_none")]
 	    pub offer_quantity_max: Option<u64>,
 	    #[serde(skip_serializing_if = "Option::is_none")]
@@ -6847,6 +6871,8 @@ pub mod responses {
 	    pub unique_id: Option<String>,
 	    #[serde(skip_serializing_if = "Option::is_none")]
 	    pub version: Option<String>,
+	    #[serde(skip_serializing_if = "Option::is_none")]
+	    pub warning_empty_blinded_path: Option<String>,
 	    #[serde(skip_serializing_if = "Option::is_none")]
 	    pub warning_invalid_invoice_request_signature: Option<String>,
 	    #[serde(skip_serializing_if = "Option::is_none")]
@@ -6884,7 +6910,7 @@ pub mod responses {
 	    #[serde(skip_serializing_if = "Option::is_none")]
 	    pub warning_missing_offer_description: Option<String>,
 	    #[serde(skip_serializing_if = "Option::is_none")]
-	    pub warning_missing_offer_node_id: Option<String>,
+	    pub warning_missing_offer_issuer_id: Option<String>,
 	    #[serde(skip_serializing_if = "Option::is_none")]
 	    pub warning_rune_invalid_utf8: Option<String>,
 	    #[serde(skip_serializing_if = "Option::is_none")]
@@ -6895,6 +6921,8 @@ pub mod responses {
 	    pub fallbacks: Option<Vec<DecodeFallbacks>>,
 	    #[serde(skip_serializing_if = "crate::is_none_or_empty")]
 	    pub invoice_fallbacks: Option<Vec<DecodeInvoice_fallbacks>>,
+	    #[serde(skip_serializing_if = "crate::is_none_or_empty")]
+	    pub invreq_paths: Option<Vec<DecodeInvreq_paths>>,
 	    #[serde(skip_serializing_if = "crate::is_none_or_empty")]
 	    pub offer_chains: Option<Vec<Sha256>>,
 	    #[serde(skip_serializing_if = "crate::is_none_or_empty")]

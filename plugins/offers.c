@@ -9,9 +9,9 @@
 #include <common/bech32_util.h>
 #include <common/bolt11.h>
 #include <common/bolt11_json.h>
+#include <common/bolt12_id.h>
 #include <common/bolt12_merkle.h>
 #include <common/gossmap.h>
-#include <common/invoice_path_id.h>
 #include <common/iso4217.h>
 #include <common/json_blinded_path.h>
 #include <common/json_param.h>
@@ -39,6 +39,7 @@ bool dev_invoice_bpath_scid;
 struct short_channel_id *dev_invoice_internal_scid;
 struct secret invoicesecret_base;
 struct secret offerblinding_base;
+struct secret nodealias_base;
 static struct gossmap *global_gossmap;
 
 static void init_gossmap(struct plugin *plugin)
@@ -564,6 +565,19 @@ static bool json_add_blinded_paths(struct json_stream *js,
 		return false;
 	}
 
+	/* BOLT-offers #12:
+	 *  - if `num_hops` is 0 in any `blinded_path` in `offer_paths`:
+	 *    - MUST NOT respond to the offer.
+	 */
+	for (size_t i = 0; i < tal_count(paths); i++) {
+		if (tal_count(paths[i]->path) == 0) {
+			json_add_str_fmt(js, "warning_empty_blinded_path",
+					 "blinded path %zu has 0 hops",
+					 i);
+			return false;
+		}
+	}
+
 	return true;
 }
 
@@ -609,7 +623,7 @@ static bool json_add_offer_fields(struct json_stream *js,
 				  struct blinded_path **offer_paths,
 				  const char *offer_issuer,
 				  const u64 *offer_quantity_max,
-				  const struct pubkey *offer_node_id,
+				  const struct pubkey *offer_issuer_id,
 				  const struct recurrence *offer_recurrence,
 				  const struct recurrence_paywindow *offer_recurrence_paywindow,
 				  const u32 *offer_recurrence_limit,
@@ -693,9 +707,8 @@ static bool json_add_offer_fields(struct json_stream *js,
 		json_object_end(js);
 	}
 
-	/* Required for offers, *not* for others! */
-	if (offer_node_id)
-		json_add_pubkey(js, "offer_node_id", offer_node_id);
+	if (offer_issuer_id)
+		json_add_pubkey(js, "offer_issuer_id", offer_issuer_id);
 
 	return valid;
 }
@@ -743,18 +756,18 @@ static void json_add_offer(struct json_stream *js, const struct tlv_offer *offer
 				       offer->offer_paths,
 				       offer->offer_issuer,
 				       offer->offer_quantity_max,
-				       offer->offer_node_id,
+				       offer->offer_issuer_id,
 				       offer->offer_recurrence,
 				       offer->offer_recurrence_paywindow,
 				       offer->offer_recurrence_limit,
 				       offer->offer_recurrence_base);
 	/* BOLT-offers #12:
-	 * - if `offer_node_id` is not set:
+	 * - if neither `offer_issuer_id` nor `offer_paths` are set:
 	 *   - MUST NOT respond to the offer.
 	 */
-	if (!offer->offer_node_id) {
-		json_add_string(js, "warning_missing_offer_node_id",
-				"offers without a node_id are invalid");
+	if (!offer->offer_issuer_id && !offer->offer_paths) {
+		json_add_string(js, "warning_missing_offer_issuer_id",
+				"offers without an issuer_id or paths are invalid");
 		valid = false;
 	}
 	json_add_extra_fields(js, "unknown_offer_tlvs", offer->fields);
@@ -769,6 +782,7 @@ static bool json_add_invreq_fields(struct json_stream *js,
 				   const u64 *invreq_quantity,
 				   const struct pubkey *invreq_payer_id,
 				   const utf8 *invreq_payer_note,
+				   struct blinded_path **invreq_paths,
 				   const u32 *invreq_recurrence_counter,
 				   const u32 *invreq_recurrence_start)
 {
@@ -802,6 +816,9 @@ static bool json_add_invreq_fields(struct json_stream *js,
 		json_add_u64(js, "invreq_quantity", *invreq_quantity);
 	if (invreq_payer_note)
 		valid &= json_add_utf8(js, "invreq_payer_note", invreq_payer_note);
+	if (invreq_paths)
+		valid &= json_add_blinded_paths(js, "invreq_paths",
+						invreq_paths, NULL);
 	if (invreq_recurrence_counter) {
 		json_add_u32(js, "invreq_recurrence_counter",
 			     *invreq_recurrence_counter);
@@ -890,8 +907,8 @@ static void json_add_invoice_request(struct json_stream *js,
 {
 	bool valid = true;
 
-	/* If there's an offer_node_id, then there's an offer. */
-	if (invreq->offer_node_id) {
+	/* If there's an offer_issuer_id or offer_paths, then there's an offer. */
+	if (invreq->offer_issuer_id || invreq->offer_paths) {
 		struct sha256 offer_id;
 
 		invreq_offer_id(invreq, &offer_id);
@@ -909,7 +926,7 @@ static void json_add_invoice_request(struct json_stream *js,
 				       invreq->offer_paths,
 				       invreq->offer_issuer,
 				       invreq->offer_quantity_max,
-				       invreq->offer_node_id,
+				       invreq->offer_issuer_id,
 				       invreq->offer_recurrence,
 				       invreq->offer_recurrence_paywindow,
 				       invreq->offer_recurrence_limit,
@@ -922,6 +939,7 @@ static void json_add_invoice_request(struct json_stream *js,
 					invreq->invreq_quantity,
 					invreq->invreq_payer_id,
 					invreq->invreq_payer_note,
+					invreq->invreq_paths,
 					invreq->invreq_recurrence_counter,
 					invreq->invreq_recurrence_start);
 
@@ -967,8 +985,8 @@ static void json_add_b12_invoice(struct json_stream *js,
 {
 	bool valid = true;
 
-	/* If there's an offer_node_id, then there's an offer. */
-	if (invoice->offer_node_id) {
+	/* If there's an offer_issuer_id or offer_paths, then there's an offer. */
+	if (invoice->offer_issuer_id || invoice->offer_paths) {
 		struct sha256 offer_id;
 
 		invoice_offer_id(invoice, &offer_id);
@@ -986,7 +1004,7 @@ static void json_add_b12_invoice(struct json_stream *js,
 				       invoice->offer_paths,
 				       invoice->offer_issuer,
 				       invoice->offer_quantity_max,
-				       invoice->offer_node_id,
+				       invoice->offer_issuer_id,
 				       invoice->offer_recurrence,
 				       invoice->offer_recurrence_paywindow,
 				       invoice->offer_recurrence_limit,
@@ -999,12 +1017,14 @@ static void json_add_b12_invoice(struct json_stream *js,
 					invoice->invreq_quantity,
 					invoice->invreq_payer_id,
 					invoice->invreq_payer_note,
+					invoice->invreq_paths,
 					invoice->invreq_recurrence_counter,
 					invoice->invreq_recurrence_start);
 
 	/* BOLT-offers #12:
 	 * - MUST reject the invoice if `invoice_paths` is not present
 	 *   or is empty.
+	 * - MUST reject the invoice if `num_hops` is 0 in any `blinded_path` in `invoice_paths`.
 	 * - MUST reject the invoice if `invoice_blindedpay` is not present.
 	 * - MUST reject the invoice if `invoice_blindedpay` does not contain
 	 *   exactly one `blinded_payinfo` per `invoice_paths`.`blinded_path`.
@@ -1381,7 +1401,7 @@ static const char *init(struct plugin *p,
 		 JSON_SCAN(json_to_bool, &offers_enabled));
 
 	rpc_scan(p, "makesecret",
-		 take(json_out_obj(NULL, "string", INVOICE_PATH_BASE_STRING)),
+		 take(json_out_obj(NULL, "string", BOLT12_ID_BASE_STRING)),
 		 "{secret:%}",
 		 JSON_SCAN(json_to_secret, &invoicesecret_base));
 
@@ -1389,6 +1409,11 @@ static const char *init(struct plugin *p,
 		 take(json_out_obj(NULL, "string", "offer-blinded-path")),
 		 "{secret:%}",
 		 JSON_SCAN(json_to_secret, &offerblinding_base));
+
+	rpc_scan(p, "makesecret",
+		 take(json_out_obj(NULL, "string", NODE_ALIAS_BASE_STRING)),
+		 "{secret:%}",
+		 JSON_SCAN(json_to_secret, &nodealias_base));
 
 	return NULL;
 }

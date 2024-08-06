@@ -1,12 +1,12 @@
 #include "config.h"
 #include <ccan/err/err.h>
 #include <ccan/fdpass/fdpass.h>
+#include <common/bolt12_id.h>
 #include <common/ecdh.h>
 #include <common/errcode.h>
 #include <common/hsm_capable.h>
 #include <common/hsm_encryption.h>
 #include <common/hsm_version.h>
-#include <common/invoice_path_id.h>
 #include <common/json_command.h>
 #include <common/json_param.h>
 #include <common/jsonrpc_errors.h>
@@ -87,6 +87,7 @@ struct ext_key *hsm_init(struct lightningd *ld)
 	int fds[2];
 	struct ext_key *bip32_base;
 	u32 hsm_version;
+	struct pubkey unused;
 
 	/* We actually send requests synchronously: only status is async. */
 	if (socketpair(AF_LOCAL, SOCK_STREAM, 0, fds) != 0)
@@ -142,7 +143,7 @@ struct ext_key *hsm_init(struct lightningd *ld)
 					&hsm_version,
 					&ld->hsm_capabilities,
 					&ld->our_nodeid, bip32_base,
-					&ld->bolt12_base)) {
+					&unused)) {
 		/* nothing to do. */
 	} else {
 		if (ld->config.keypass)
@@ -183,13 +184,24 @@ struct ext_key *hsm_init(struct lightningd *ld)
 
 	/* This is equivalent to makesecret("bolt12-invoice-base") */
 	msg = towire_hsmd_derive_secret(NULL, tal_dup_arr(tmpctx, u8,
-							  (const u8 *)INVOICE_PATH_BASE_STRING,
-							  strlen(INVOICE_PATH_BASE_STRING), 0));
+							  (const u8 *)BOLT12_ID_BASE_STRING,
+							  strlen(BOLT12_ID_BASE_STRING), 0));
 	if (!wire_sync_write(ld->hsm_fd, take(msg)))
 		err(EXITCODE_HSM_GENERIC_ERROR, "Writing derive_secret msg to hsm");
 
 	msg = wire_sync_read(tmpctx, ld->hsm_fd);
 	if (!fromwire_hsmd_derive_secret_reply(msg, &ld->invoicesecret_base))
+		err(EXITCODE_HSM_GENERIC_ERROR, "Bad derive_secret_reply");
+
+	/* This is equivalent to makesecret("node-alias-base") */
+	msg = towire_hsmd_derive_secret(NULL, tal_dup_arr(tmpctx, u8,
+							  (const u8 *)NODE_ALIAS_BASE_STRING,
+							  strlen(NODE_ALIAS_BASE_STRING), 0));
+	if (!wire_sync_write(ld->hsm_fd, take(msg)))
+		err(EXITCODE_HSM_GENERIC_ERROR, "Writing derive_secret msg to hsm");
+
+	msg = wire_sync_read(tmpctx, ld->hsm_fd);
+	if (!fromwire_hsmd_derive_secret_reply(msg, &ld->nodealias_base))
 		err(EXITCODE_HSM_GENERIC_ERROR, "Bad derive_secret_reply");
 
 	return bip32_base;
