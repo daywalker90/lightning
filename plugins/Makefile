@@ -127,6 +127,8 @@ ifneq ($(RUST),0)
 # *without* make install.
 plugins/cln-grpc: target/${RUST_PROFILE}/cln-grpc
 	@cp $< $@
+plugins/clnrest-rs: target/${RUST_PROFILE}/clnrest-rs
+	@cp $< $@
 
 PLUGINS += plugins/cln-grpc
 endif
@@ -272,12 +274,15 @@ CLN_PLUGIN_EXAMPLES := \
 
 CLN_PLUGIN_SRC = $(shell find plugins/src -name "*.rs")
 CLN_GRPC_PLUGIN_SRC = $(shell find plugins/grpc-plugin/src -name "*.rs")
+CLNREST_RS_PLUGIN_SRC = $(shell find plugins/clnrest-rs-plugin/src -name "*.rs")
 
 target/${RUST_PROFILE}/cln-grpc: ${CLN_PLUGIN_SRC} ${CLN_GRPC_PLUGIN_SRC}
 	cargo build ${CARGO_OPTS} --bin cln-grpc
+target/${RUST_PROFILE}/clnrest-rs: ${CLNREST_RS_PLUGIN_SRC}
+	cargo build ${CARGO_OPTS} --bin clnrest-rs
 
 ifneq ($(RUST),0)
-DEFAULT_TARGETS += $(CLN_PLUGIN_EXAMPLES) plugins/cln-grpc
+DEFAULT_TARGETS += $(CLN_PLUGIN_EXAMPLES) plugins/cln-grpc plugins/clnrest-rs
 endif
 
 clean: plugins-clean
