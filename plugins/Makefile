@@ -297,8 +297,8 @@ CLN_PLUGIN_SRC = $(shell find plugins/src -name "*.rs")
 CLN_GRPC_PLUGIN_SRC = $(shell find plugins/grpc-plugin/src -name "*.rs")
 
 target/${RUST_PROFILE}/cln-grpc: ${CLN_PLUGIN_SRC} ${CLN_GRPC_PLUGIN_SRC} $(MSGGEN_GENALL) $(MSGGEN_GEN_ALL)
-	ls -al
-	cargo build ${CARGO_OPTS} --bin cln-grpc
+	ls -al contrib/msggen/msggen/
+	cargo build -vv ${CARGO_OPTS} --bin cln-grpc
 
 ifneq ($(RUST),0)
 DEFAULT_TARGETS += $(CLN_PLUGIN_EXAMPLES) plugins/cln-grpc
