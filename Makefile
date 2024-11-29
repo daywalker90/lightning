@@ -346,9 +346,9 @@ endif
 
 RUST_PROFILE ?= debug
 ifneq ($(RUST_PROFILE),debug)
-CARGO_OPTS := --profile=$(RUST_PROFILE) --vv
+CARGO_OPTS := --profile=$(RUST_PROFILE) --verbose
 else
-CARGO_OPTS := --vv
+CARGO_OPTS := --verbose
 endif
 
 include external/Makefile
