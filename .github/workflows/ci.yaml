@@ -154,7 +154,7 @@ jobs:
           ./configure --enable-debugbuild CC="$COMPILER" ${{ matrix.COPTFLAGS_VAR }}
 
           make -j $(nproc) testpack.tar.bz2
-          sudo make install
+          sudo -E bash -c "source $HOME/.cargo/env && rustup default stable && make install"
           ls -al /usr/local/libexec/c-lightning/plugins/
 
           # Rename now so we don't clash
