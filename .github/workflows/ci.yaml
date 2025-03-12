@@ -146,6 +146,7 @@ jobs:
           set -e
           wget https://github.com/ElementsProject/lightning/releases/download/v24.11.1/clightning-v24.11.1-Ubuntu-22.04-amd64.tar.xz
           sudo tar -xvf clightning-v24.11.1-Ubuntu-22.04-amd64.tar.xz -C /usr/local --strip-components=2
+          ls -al /usr/local/libexec/c-lightning/plugins/
           pip3 install --user pip wheel poetry
           poetry self add poetry-plugin-export
           poetry export -o requirements.txt --with dev --without-hashes
@@ -154,6 +155,7 @@ jobs:
 
           make -j $(nproc) testpack.tar.bz2
           sudo make install
+          ls -al /usr/local/libexec/c-lightning/plugins/
 
           # Rename now so we don't clash
           mv testpack.tar.bz2 cln-${CFG}.tar.bz2
