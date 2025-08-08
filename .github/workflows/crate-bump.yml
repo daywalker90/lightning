@@ -48,9 +48,11 @@ jobs:
         if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
           DISTLOCATION=$(echo ${{ github.event.inputs.dist-location }} | cut -d' ' -f1)
           CRATE_NAME=$(echo ${{ github.event.inputs.dist-location }} | cut -d' ' -f2)
+          BRANCH_NAME="bump-$CRATE_NAME-$DISTLOCATION-version-$(date +%Y%m%d-%H%M%S)"
         elif [ "${{ github.event_name }}" = "push" ]; then
           CRATE_NAME=$(echo ${{ github.ref_name }} | cut -d'-' -f1)
           VERSION=$(echo ${{ github.ref_name }} | cut -d'-' -f2 | sed 's/^v//')
+          BRANCH_NAME="bump-$CRATE_NAME-version-$VERSION-$(date +%Y%m%d-%H%M%S)"
           echo "VERSION=$VERSION" >> $GITHUB_OUTPUT
         else
           echo "Neither tag nor workflow dispatch"
@@ -58,6 +60,7 @@ jobs:
         fi
         echo "DISTLOCATION=$DISTLOCATION" >> $GITHUB_OUTPUT
         echo "CRATE_NAME=$CRATE_NAME" >> $GITHUB_OUTPUT
+        echo "BRANCH_NAME=$BRANCH_NAME" >> $GITHUB_OUTPUT
         echo "EVENT DISTLOCATION: ${{ github.event.inputs.dist-location }}"
         echo "DISTRIBUTION LOCATION: $DISTLOCATION"
 
@@ -90,7 +93,7 @@ jobs:
         title: "${{ steps.set-values.outputs.CRATE_NAME }}: Bump the ${{ steps.set-values.outputs.DISTLOCATION }} version"
         body: |
           Triggered manually with option: ${{ github.event.inputs.dist-location }}
-        branch: "bump-${{ steps.set-values.outputs.CRATE_NAME }}-${{ steps.set-values.outputs.DISTLOCATION }}-version-$(date +%Y%m%d-%H%M%S)"
+        branch: "${{ steps.set-values.outputs.BRANCH_NAME }}"
         base: master
         labels: version-bump, automated
         delete-branch: true
@@ -104,7 +107,7 @@ jobs:
         title: "${{ steps.set-values.outputs.CRATE_NAME }}: Bump to version ${{ steps.set-values.outputs.VERSION }}"
         body: |
           Triggered by tag: ${{ github.ref_name }}
-        branch: "bump-${{ steps.set-values.outputs.CRATE_NAME }}-version-${{ steps.set-values.outputs.VERSION }}-$(date +%Y%m%d-%H%M%S)"
+        branch: "${{ steps.set-values.outputs.BRANCH_NAME }}"
         base: master
         labels: version-bump, automated
         delete-branch: true
