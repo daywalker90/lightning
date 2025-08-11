@@ -51,7 +51,16 @@ jobs:
 
     - name: Bump version
       run: |
-        cargo release version -p ${{ github.event.inputs.dist-location }} ${{ steps.determine-version.outputs.bump }} --execute --no-confirm
+        if ${{ steps.determine-version.outputs.bump }} == "patch"; then
+          cargo release version -p ${{ github.event.inputs.dist-location }} patch --execute --no-confirm
+        elif ${{ steps.determine-version.outputs.bump }} == "minor"; then
+          cargo release version -p ${{ github.event.inputs.dist-location }} minor --execute --no-confirm
+        elif ${{ steps.determine-version.outputs.bump }} == "major"; then
+          cargo release version -p ${{ github.event.inputs.dist-location }} minor --execute --no-confirm
+        else
+          echo "Unknown bump type: ${{ steps.determine-version.outputs.bump }}"
+          exit 1
+        fi
 
     - name: Create Pull Request
       uses: peter-evans/create-pull-request@v7
