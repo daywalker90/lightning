@@ -51,11 +51,11 @@ jobs:
 
     - name: Bump version
       run: |
-        if ${{ steps.determine-version.outputs.bump }} == "patch"; then
+        if [[ "${{ steps.determine-version.outputs.bump }}" == "patch" ]]; then
           cargo release version -p ${{ github.event.inputs.dist-location }} patch --execute --no-confirm
-        elif ${{ steps.determine-version.outputs.bump }} == "minor"; then
+        elif [[ "${{ steps.determine-version.outputs.bump }}" == "minor" ]]; then
           cargo release version -p ${{ github.event.inputs.dist-location }} minor --execute --no-confirm
-        elif ${{ steps.determine-version.outputs.bump }} == "major"; then
+        elif [[ "${{ steps.determine-version.outputs.bump }}" == "major" ]]; then
           cargo release version -p ${{ github.event.inputs.dist-location }} minor --execute --no-confirm
         else
           echo "Unknown bump type: ${{ steps.determine-version.outputs.bump }}"
