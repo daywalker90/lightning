@@ -25,15 +25,15 @@ jobs:
       uses: arduino/setup-protoc@v3
 
     - name: Setup rust
-      uses: dtolnay/rust-toolchain@stable
+      uses: dtolnay/rust-toolchain@1.77
 
     - name: Install cargo binstall
       uses: cargo-bins/cargo-binstall@main
 
-    - name: Install cargo release
+    - name: Install cargo-release and cargo-semver-checks
       run: |
-        cargo binstall cargo-release
-        cargo binstall cargo-semver-checks
+        cargo binstall cargo-release --version 0.25.10
+        cargo binstall cargo-semver-checks --version 0.36.0
 
     - name: Determine version
       id: determine-version
@@ -43,7 +43,7 @@ jobs:
         elif cargo semver-checks -p ${{ github.event.inputs.dist-location }} --release-type minor; then
           echo "bump=minor" >> $GITHUB_OUTPUT
         elif cargo semver-checks -p ${{ github.event.inputs.dist-location }} --release-type major; then
-          echo "bump=major" >> $GITHUB_OUTPUT
+          echo "bump=minor" >> $GITHUB_OUTPUT
         else
           echo "bump=unknown" >> $GITHUB_OUTPUT
           exit 1
@@ -51,16 +51,7 @@ jobs:
 
     - name: Bump version
       run: |
-        if [[ "${{ steps.determine-version.outputs.bump }}" == "patch" ]]; then
-          cargo release version -p ${{ github.event.inputs.dist-location }} patch --execute --no-confirm
-        elif [[ "${{ steps.determine-version.outputs.bump }}" == "minor" ]]; then
-          cargo release version -p ${{ github.event.inputs.dist-location }} minor --execute --no-confirm
-        elif [[ "${{ steps.determine-version.outputs.bump }}" == "major" ]]; then
-          cargo release version -p ${{ github.event.inputs.dist-location }} minor --execute --no-confirm
-        else
-          echo "Unknown bump type: ${{ steps.determine-version.outputs.bump }}"
-          exit 1
-        fi
+        cargo release version -p ${{ github.event.inputs.dist-location }} ${{ steps.determine-version.outputs.bump }} --execute --no-confirm
 
     - name: Create Pull Request
       uses: peter-evans/create-pull-request@v7
