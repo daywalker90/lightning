@@ -1,68 +1,25 @@
-name: Bump Rust 🦀 crate versions
+name: Bump Rust 🦀 crate version
 
 on:
-  push:
-    tags:
-      - 'cln-plugin-v[0-9]+.[0-9]+.[0-9]+'
-      - 'cln-rpc-v[0-9]+.[0-9]+.[0-9]+'
-      - 'cln-grpc-v[0-9]+.[0-9]+.[0-9]+'
   workflow_dispatch:
     inputs:
       dist-location:
         description: 'Distribution location'
         type: choice
         options:
-          - rc cln-plugin
-          - patch cln-plugin
-          - minor cln-plugin
-          - major cln-plugin
-          - rc cln-rpc
-          - patch cln-rpc
-          - minor cln-rpc
-          - major cln-rpc
-          - rc cln-grpc
-          - patch cln-grpc
-          - minor cln-grpc
-          - major cln-grpc
-        default: 'rc cln-rpc'
-        required: false
+          - cln-plugin
+          - cln-rpc
+          - cln-grpc
+        default: 'cln-rpc'
+        required: true
 
 jobs:
   bump:
     runs-on: ubuntu-latest
-    timeout-minutes: 120
+    timeout-minutes: 60
     steps:
     - name: Checkout repository
       uses: actions/checkout@v4
-      with:
-        # Need to fetch entire history in order to locate the version tag
-        fetch-depth: 0
-
-    - name: Check version tag
-      run: >-
-        git describe --tags --always --dirty=-modded --abbrev=7
-
-    - name: Set up values
-      id: set-values
-      run: |
-        if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
-          DISTLOCATION=$(echo ${{ github.event.inputs.dist-location }} | cut -d' ' -f1)
-          CRATE_NAME=$(echo ${{ github.event.inputs.dist-location }} | cut -d' ' -f2)
-          BRANCH_NAME="bump-$CRATE_NAME-$DISTLOCATION-version-$(date +%Y%m%d-%H%M%S)"
-        elif [ "${{ github.event_name }}" = "push" ]; then
-          CRATE_NAME=$(echo ${{ github.ref_name }} | rev | cut -d'-' -f2- | rev)
-          VERSION=$(echo ${{ github.ref_name }} | rev | cut -d'-' -f1 | rev | sed 's/^v//')
-          BRANCH_NAME="bump-$CRATE_NAME-version-$VERSION-$(date +%Y%m%d-%H%M%S)"
-          echo "VERSION=$VERSION" >> $GITHUB_OUTPUT
-        else
-          echo "Neither tag nor workflow dispatch"
-          exit 1
-        fi
-        echo "DISTLOCATION=$DISTLOCATION" >> $GITHUB_OUTPUT
-        echo "CRATE_NAME=$CRATE_NAME" >> $GITHUB_OUTPUT
-        echo "BRANCH_NAME=$BRANCH_NAME" >> $GITHUB_OUTPUT
-        echo "EVENT DISTLOCATION: ${{ github.event.inputs.dist-location }}"
-        echo "DISTRIBUTION LOCATION: $DISTLOCATION"
 
     - name: Setup rust
       uses: dtolnay/rust-toolchain@stable
@@ -73,41 +30,35 @@ jobs:
     - name: Install cargo release
       run: |
         cargo binstall cargo-release
+        cargo binstall cargo-semver-checks
 
-    - name: Bump unspecific version
-      if: github.repository == 'ElementsProject/lightning' && steps.set-values.outputs.DISTLOCATION != ''
+    - name: Determine version
+      id: determine-version
       run: |
-        cargo release version -p ${{ steps.set-values.outputs.CRATE_NAME }} ${{ steps.set-values.outputs.DISTLOCATION }} --execute --no-confirm
+        if cargo semver-checks -p ${{ github.event.inputs.dist-location }} --release-type patch; then
+          echo "bump=patch" >> $GITHUB_OUTPUT
+        elif cargo semver-checks -p ${{ github.event.inputs.dist-location }} --release-type minor; then
+          echo "bump=minor" >> $GITHUB_OUTPUT
+        elif cargo semver-checks -p ${{ github.event.inputs.dist-location }} --release-type major; then
+          echo "bump=major" >> $GITHUB_OUTPUT
+        else
+          echo "bump=unknown" >> $GITHUB_OUTPUT
+          exit 1
+        fi
 
-    - name: Bump specific release version
-      if: github.repository == 'ElementsProject/lightning' && steps.set-values.outputs.DISTLOCATION == '' && steps.set-values.outputs.VERSION != ''
+    - name: Bump version
       run: |
-        cargo release version -p ${{ steps.set-values.outputs.CRATE_NAME }} ${{ steps.set-values.outputs.VERSION }} --execute --no-confirm
+        cargo release version -p ${{ github.event.inputs.dist-location }} ${{ steps.determine-version.outputs.bump }} --execute --no-confirm
 
-    - name: Create Pull Request for workflow_dispatch
-      if: github.repository == 'ElementsProject/lightning' && github.event_name == 'workflow_dispatch'
+    - name: Create Pull Request
       uses: peter-evans/create-pull-request@v7
       with:
         token: ${{ secrets.GITHUB_TOKEN }}
-        commit-message: "${{ steps.set-values.outputs.CRATE_NAME }}: Bump the ${{ steps.set-values.outputs.DISTLOCATION }} version"
-        title: "${{ steps.set-values.outputs.CRATE_NAME }}: Bump the ${{ steps.set-values.outputs.DISTLOCATION }} version"
+        commit-message: "${{ github.event.inputs.dist-location }}: Bump the ${{ steps.determine-version.outputs.bump }} version"
+        title: "${{ github.event.inputs.dist-location }}: Bump the ${{ steps.determine-version.outputs.bump }} version"
         body: |
           Triggered manually with option: ${{ github.event.inputs.dist-location }}
-        branch: "${{ steps.set-values.outputs.BRANCH_NAME }}"
-        base: master
-        labels: version-bump, automated
-        delete-branch: true
-
-    - name: Create Pull Request for tag
-      if: github.repository == 'ElementsProject/lightning' && github.event_name == 'push'
-      uses: peter-evans/create-pull-request@v7
-      with:
-        token: ${{ secrets.GITHUB_TOKEN }}
-        commit-message: "${{ steps.set-values.outputs.CRATE_NAME }}: Bump to version ${{ steps.set-values.outputs.VERSION }}"
-        title: "${{ steps.set-values.outputs.CRATE_NAME }}: Bump to version ${{ steps.set-values.outputs.VERSION }}"
-        body: |
-          Triggered by tag: ${{ github.ref_name }}
-        branch: "${{ steps.set-values.outputs.BRANCH_NAME }}"
+        branch: "${{ github.event.inputs.dist-location }}-version-bump"
         base: master
         labels: version-bump, automated
         delete-branch: true
