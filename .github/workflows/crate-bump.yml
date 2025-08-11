@@ -61,6 +61,7 @@ jobs:
         title: "${{ github.event.inputs.dist-location }}: Bump the ${{ steps.determine-version.outputs.bump }} version"
         body: |
           Triggered manually with option: ${{ github.event.inputs.dist-location }}
+          Version bump determined by `cargo semver-checks`
         branch: "${{ github.event.inputs.dist-location }}-version-bump"
         base: master
         labels: version-bump, automated
