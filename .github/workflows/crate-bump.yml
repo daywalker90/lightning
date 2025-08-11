@@ -10,7 +10,7 @@ on:
           - cln-plugin
           - cln-rpc
           - cln-grpc
-        default: 'cln-rpc'
+        default: 'cln-plugin'
         required: true
 
 jobs:
@@ -20,6 +20,9 @@ jobs:
     steps:
     - name: Checkout repository
       uses: actions/checkout@v4
+
+    - name: Setup protoc
+      uses: arduino/setup-protoc@v3
 
     - name: Setup rust
       uses: dtolnay/rust-toolchain@stable
