@@ -318,7 +318,8 @@ ifeq ($(HAVE_POSTGRES),1)
 LDLIBS += $(POSTGRES_LDLIBS)
 endif
 
-default: show-flags gen all-programs all-test-programs doc-all default-targets $(PYTHON_GENERATED)
+default: show-flags gen
+	@$(MAKE) all-programs all-test-programs doc-all default-targets $(PYTHON_GENERATED)
 
 ifneq ($(SUPPRESS_GENERATION),1)
 FORCE = FORCE
