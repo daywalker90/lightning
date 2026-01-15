@@ -2,7 +2,8 @@
 strip = "debuginfo"
 
 [workspace]
-resolver = "2"
+resolver = "3"
+package.rust-version = "1.85.0"
 members = [
     "cln-rpc",
     "cln-grpc",
@@ -12,6 +13,7 @@ members = [
     "plugins/lsps-plugin",
     "plugins/wss-proxy-plugin",
     "plugins/bip353-plugin",
+    "plugins/currencyrate-plugin",
 ]
 
 [workspace.dependencies]
