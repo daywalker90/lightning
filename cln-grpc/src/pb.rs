@@ -11,6 +11,7 @@ mod convert {
     use cln_rpc::primitives::{
         Amount as JAmount, AmountOrAll as JAmountOrAll, AmountOrAny as JAmountOrAny,
         Feerate as JFeerate, Outpoint as JOutpoint, OutputDesc as JOutputDesc,
+        RpcParams as JRpcParams,
     };
 
     impl From<JAmount> for Amount {
@@ -277,6 +278,100 @@ mod convert {
             Self {
                 r#type: e.typ,
                 value: e.value,
+            }
+        }
+    }
+
+    impl From<serde_json::Value> for JsonValue {
+        fn from(v: serde_json::Value) -> Self {
+            let kind = match v {
+                serde_json::Value::Null => None,
+                serde_json::Value::Bool(b) => Some(json_value::Kind::BoolValue(b)),
+                serde_json::Value::Number(n) => {
+                    if let Some(u) = n.as_u64() {
+                        Some(json_value::Kind::UintValue(u))
+                    } else if let Some(i) = n.as_i64() {
+                        Some(json_value::Kind::IntValue(i))
+                    } else if let Some(f) = n.as_f64() {
+                        Some(json_value::Kind::DoubleValue(f))
+                    } else {
+                        None
+                    }
+                }
+                serde_json::Value::String(s) => Some(json_value::Kind::StringValue(s)),
+                serde_json::Value::Array(arr) => Some(json_value::Kind::Array(JsonArray {
+                    values: arr.into_iter().map(JsonValue::from).collect(),
+                })),
+                serde_json::Value::Object(obj) => Some(json_value::Kind::Object(JsonObject {
+                    fields: obj
+                        .into_iter()
+                        .map(|(k, v)| (k, JsonValue::from(v)))
+                        .collect(),
+                })),
+            };
+            JsonValue { kind }
+        }
+    }
+
+    impl From<JRpcParams> for RpcParams {
+        fn from(v: JRpcParams) -> Self {
+            let kind = match v {
+                JRpcParams::Array(arr) => Some(rpc_params::Kind::Array(JsonArray {
+                    values: arr.into_iter().map(JsonValue::from).collect(),
+                })),
+                JRpcParams::Object(obj) => Some(rpc_params::Kind::Object(JsonObject {
+                    fields: obj
+                        .into_iter()
+                        .map(|(k, v)| (k, JsonValue::from(v)))
+                        .collect(),
+                })),
+            };
+            RpcParams { kind }
+        }
+    }
+
+    impl From<JsonValue> for serde_json::Value {
+        fn from(v: JsonValue) -> Self {
+            match v.kind {
+                None => serde_json::Value::Null,
+                Some(json_value::Kind::BoolValue(b)) => serde_json::Value::Bool(b),
+                Some(json_value::Kind::UintValue(u)) => serde_json::Value::Number(u.into()),
+                Some(json_value::Kind::IntValue(i)) => serde_json::Value::Number(i.into()),
+                Some(json_value::Kind::DoubleValue(f)) => serde_json::Number::from_f64(f)
+                    .map_or(serde_json::Value::Null, serde_json::Value::Number),
+                Some(json_value::Kind::StringValue(s)) => serde_json::Value::String(s),
+                Some(json_value::Kind::Array(arr)) => serde_json::Value::Array(
+                    arr.values
+                        .into_iter()
+                        .map(serde_json::Value::from)
+                        .collect(),
+                ),
+                Some(json_value::Kind::Object(obj)) => serde_json::Value::Object(
+                    obj.fields
+                        .into_iter()
+                        .map(|(k, v)| (k, serde_json::Value::from(v)))
+                        .collect(),
+                ),
+            }
+        }
+    }
+
+    impl From<RpcParams> for JRpcParams {
+        fn from(v: RpcParams) -> Self {
+            match v.kind {
+                Some(rpc_params::Kind::Array(arr)) => JRpcParams::Array(
+                    arr.values
+                        .into_iter()
+                        .map(serde_json::Value::from)
+                        .collect(),
+                ),
+                Some(rpc_params::Kind::Object(obj)) => JRpcParams::Object(
+                    obj.fields
+                        .into_iter()
+                        .map(|(k, v)| (k, serde_json::Value::from(v)))
+                        .collect(),
+                ),
+                None => JRpcParams::Array(vec![]), // or handle as error
             }
         }
     }

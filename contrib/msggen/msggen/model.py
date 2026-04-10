@@ -17,7 +17,8 @@ class FieldName:
 
     def normalized(self):
         name = {
-            "type": "item_type"
+            "type": "item_type",
+            "return": "return_",
         }.get(self.name, self.name)
         name = name.replace(' ', '_').replace('-', '_').replace('[]', '').replace("/", "_")
         return name
@@ -135,10 +136,11 @@ class Field:
 class Service:
     """Top level class that wraps all the RPC methods.
     """
-    def __init__(self, name: str, methods=None, notifications=None):
+    def __init__(self, name: str, methods=None, notifications=None, hooks=None):
         self.name: str = name
         self.methods: List[Method] = [] if methods is None else methods
         self.notifications: List[Notification] = [] if notifications is None else notifications
+        self.hooks: List[Hook] = [] if hooks is None else hooks
 
         # If we require linking with some external files we'll add
         # them here so the generator can use them.
@@ -175,7 +177,22 @@ class Service:
             for field in notification.response.fields:
                 types.extend(gather_subfields(field))
 
+        for hook in self.hooks:
+            types.extend([hook.request])
+            for field in hook.request.fields:
+                types.extend(gather_subfields(field))
+            for field in hook.response.fields:
+                types.extend(gather_subfields(field))
+
         return types
+
+
+class Hook:
+    def __init__(self, name: str, typename: str, request: Field, response: Field):
+        self.name = name
+        self.typename = typename
+        self.request = request
+        self.response = response
 
 
 class Notification:
@@ -433,6 +450,7 @@ class PrimitiveField(Field):
         "bip340sig",
         "hash",
         "string_map",
+        "rpc_params",
     ]
 
     def __init__(self, typename, path, description, added, deprecated):

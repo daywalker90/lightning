@@ -91,6 +91,7 @@ use tokio::net::UnixStream;
 use tokio_util::codec::{FramedRead, FramedWrite};
 
 pub mod codec;
+pub mod hooks;
 pub mod jsonrpc;
 pub mod model;
 pub mod notifications;
@@ -559,8 +560,11 @@ mod test {
     #[test]
     fn serialize_custom_msg_notification() {
         let msg = CustomMsgNotification {
-            peer_id : PublicKey::from_str("0364aeb75519be29d1af7b8cc6232dbda9fdabb79b66e4e1f6a223750954db210b").unwrap(),
-            payload : String::from("941746573749")
+            peer_id: PublicKey::from_str(
+                "0364aeb75519be29d1af7b8cc6232dbda9fdabb79b66e4e1f6a223750954db210b",
+            )
+            .unwrap(),
+            payload: String::from("941746573749"),
         };
 
         let notification = Notification::CustomMsg(msg);
@@ -576,14 +580,16 @@ mod test {
                 }
             )
         );
-
     }
 
     #[test]
     fn serialize_block_added_notification() {
         let block_added = BlockAddedNotification {
-            hash : crate::primitives::Sha256::from_str("000000000000000000000acab8abe0c67a52ed7e5a90a19c64930ff11fa84eca").unwrap(),
-            height : 830702
+            hash: crate::primitives::Sha256::from_str(
+                "000000000000000000000acab8abe0c67a52ed7e5a90a19c64930ff11fa84eca",
+            )
+            .unwrap(),
+            height: 830702,
         };
 
         let notification = Notification::BlockAdded(block_added);
@@ -613,6 +619,6 @@ mod test {
             }
         });
 
-        let _ : Notification = serde_json::from_value(connect_json).unwrap();
+        let _: Notification = serde_json::from_value(connect_json).unwrap();
     }
 }

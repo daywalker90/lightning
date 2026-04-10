@@ -133,6 +133,8 @@ class GrpcConverterGenerator(IGenerator):
                     "DecodeRoutehintList?": f"c.{name}.map(|drl| drl.into())",
                     "string_map": f"Some(c.{name})",
                     "string_map?": f"c.{name}.unwrap_or(HashMap::new())",
+                    "rpc_params": f"Some(c.{name})",
+                    "rpc_params?": f"c.{name}.map(|f| f.into())",
                 }.get(
                     typ, f"c.{name}"  # default to just assignment
                 )

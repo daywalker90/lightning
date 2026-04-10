@@ -425,6 +425,10 @@ def _extra_validator(is_request: bool):
                 return False
         return True
 
+    def is_rpc_params(checker, instance):
+        """rpc method params can be either an object or an array"""
+        return checker.is_type(instance, "object") or checker.is_type(instance, "array")
+
     # "msat" for request can be many forms
     if is_request:
         is_msat = is_msat_request
@@ -454,6 +458,7 @@ def _extra_validator(is_request: bool):
         "feerate": is_feerate,
         "outputdesc": is_outputdesc,
         "string_map": is_string_map,
+        "rpc_params": is_rpc_params,
     })
 
     return jsonschema.validators.extend(jsonschema.Draft7Validator,

@@ -59,6 +59,8 @@ class Grpc2PyGenerator(IGenerator):
             "currency": "m.{name}",
             "number": "m.{name}",
             "outpoint": "m.{name}",
+            "string_map": "m.{name}",
+            "rpc_params": "m.{name}",
         }
 
     def generate_responses(self, service):

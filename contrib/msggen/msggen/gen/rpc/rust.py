@@ -47,6 +47,7 @@ typemap = {
     "bip340sig": "String",
     "integer": "i64",
     "string_map": "HashMap<String, String>",
+    "rpc_params": "RpcParams",
 }
 
 header = f"""
@@ -110,12 +111,17 @@ def gen_enum(e, meta, override):
 
     m = meta["grpc-field-map"]
     m2 = meta["grpc-enum-map"]
+    m3 = meta["rpc-only-enum-map"]
 
-    assert not (message_name in m and message_name in m2)
+    count = sum(message_name in d for d in (m, m2, m3))
+    assert count <= 1
+
     if message_name in m:
         m = m[message_name]
     elif message_name in m2:
         m = m2[message_name]
+    elif message_name in m3:
+        m = m3[message_name]
     else:
         m = {}
 

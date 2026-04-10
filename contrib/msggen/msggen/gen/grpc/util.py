@@ -36,6 +36,7 @@ typemap = {
     "bip340sig": "string",
     "hash": "bytes",
     "string_map": "map<string, string>",
+    "rpc_params": "RpcParams",
 }
 
 

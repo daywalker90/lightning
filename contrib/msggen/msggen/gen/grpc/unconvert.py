@@ -134,6 +134,8 @@ class GrpcUnconverterGenerator(GrpcConverterGenerator):
                     "TlvStream?": f"c.{name}.map(|s| s.into())",
                     "string_map": f"c.{name}.unwrap()",
                     "string_map?": f"Some(c.{name})",
+                    "rpc_params": f"c.{name}.unwrap()",
+                    "rpc_params?": f"Some(c.{name})",
                 }.get(
                     typ, f"c.{name}"  # default to just assignment
                 )

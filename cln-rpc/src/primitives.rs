@@ -1173,3 +1173,10 @@ impl Serialize for TlvStream {
         map.end()
     }
 }
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(untagged)]
+pub enum RpcParams {
+    Object(serde_json::Map<String, Value>),
+    Array(Vec<Value>),
+}
