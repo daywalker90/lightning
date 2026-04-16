@@ -6957,6 +6957,8 @@ def test_decode_expired_bolt12(node_factory):
                            'path': [{'blinded_node_id': '03f293aad04524af9d25e37e30975c9c48df7f46bb5707f5103c5f15477882ef0d',
                                      'encrypted_recipient_data': 'ae4ae7ed0b821d8bbb394f8cd3013ed6c56d0b29baeddb1ce21fb8c34ce33ff59e2250758574924b03a1b567606479c7c9b0'}],
                            'payinfo': {'cltv_expiry_delta': 18,
+                                       'htlc_maximum_msat': 2100000000000000000,
+                                       'htlc_minimum_msat': 0,
                                        'features': '',
                                        'fee_base_msat': 0,
                                        'fee_proportional_millionths': 0}}],
@@ -7155,3 +7157,13 @@ def test_offer_currency_no_amount(node_factory):
     l1 = node_factory.get_node()
     with pytest.raises(RpcError, match="currency with no amount"):
         l1.rpc.decode("lno1qcp4256ypgx9getnwss8vetrw3hhyuckyypwa3eyt44h6txtxquqh7lz5djge4afgfjn7k4rgrkuag0jsd5xvxg")
+
+
+def test_blinded_path_max(node_factory):
+    """We have a bug where we can create a invoice_blindedpay with 0 htlc_maximum_msat."""
+    l1, l2, l3 = node_factory.line_graph(3, wait_for_announce=True)
+
+    # l2, having no advertized address, will use l1 or l3 as fronting nodes.
+    offer = l2.rpc.offer('any')['bolt12']
+    inv = l1.rpc.fetchinvoice(offer, '10000msat')['invoice']
+    assert only_one(l1.rpc.decode(inv)['invoice_paths'])['payinfo']['htlc_maximum_msat'] > 0, f"bad paths for offer = {offer}, invoice = {inv}"

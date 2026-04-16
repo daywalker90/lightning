@@ -481,14 +481,29 @@ static bool have_empty_encrypted_queue(const struct peer *peer)
 	return membuf_num_elems(&peer->encrypted_peer_out) == 0;
 }
 
+/* Funny story: we discovered an LND bug, where they hung up if we sent
+ * "no reply" ping messages.  This was fixed in (the upcoming) v21, which
+ * Laolu pointed out also supports onion messages.  Hence we use that
+ * to detect if we should pad packets. */
+
+/* Funnier story: Eclair had the same bug, and have also committed a
+ * fix.  They currently use a boutique feature bit 154, which is
+ * "Phoenix-specific custom splices implementation" which Tbast
+ * indicates is being phased out.  So if they offer that, don't send
+ * such pings. */
+static bool use_uniform_writes(const struct peer *peer)
+{
+	return feature_offered(peer->their_features, OPT_ONION_MESSAGES)
+		&& !feature_offered(peer->their_features, 154);
+}
+
 /* (Continue) writing the encrypted_peer_out array */
 static struct io_plan *write_encrypted_to_peer(struct peer *peer)
 {
 	size_t avail = membuf_num_elems(&peer->encrypted_peer_out);
 	/* With padding: always a full uniform-size chunk.
 	 * Without: flush whatever we have (caller ensures non-zero). */
-	size_t write_size = peer->daemon->dev_uniform_padding
-		? UNIFORM_MESSAGE_SIZE : avail;
+	size_t write_size = use_uniform_writes(peer) ? UNIFORM_MESSAGE_SIZE : avail;
 
 	assert(avail >= write_size && write_size > 0);
 	return io_write_partial(peer->to_peer,
@@ -1250,8 +1265,8 @@ static struct io_plan *write_to_peer(struct io_conn *peer_conn,
 				/* Wait for them to wake us */
 				return msg_queue_wait(peer_conn, peer->peer_outq, write_to_peer, peer);
 			}
-			/* OK, add padding (only if --dev-uniform-padding enabled). */
-			if (peer->daemon->dev_uniform_padding)
+			/* OK, add padding (only if supported). */
+			if (use_uniform_writes(peer))
 				pad_encrypted_queue(peer);
 			else
 				break;

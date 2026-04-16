@@ -150,7 +150,6 @@ static struct lightningd *new_lightningd(const tal_t *ctx)
 	ld->dev_strict_forwarding = false;
 	ld->dev_limit_connections_inflight = false;
 	ld->dev_keep_nagle = false;
-	ld->dev_uniform_padding = false;
 
 	/*~ We try to ensure enough fds for twice the number of channels
 	 * we start with.  We have a developer option to change that factor
@@ -907,6 +906,7 @@ static struct feature_set *default_features(const tal_t *ctx)
 		OPTIONAL_FEATURE(OPT_PROVIDE_STORAGE),
 		/* Removed later for elements */
 		OPTIONAL_FEATURE(OPT_ANCHORS_ZERO_FEE_HTLC_TX),
+		OPTIONAL_FEATURE(OPT_SPLICE),
 	};
 
 	for (size_t i = 0; i < ARRAY_SIZE(features); i++) {

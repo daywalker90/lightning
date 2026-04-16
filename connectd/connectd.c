@@ -113,7 +113,7 @@ static void destroy_peer(struct peer *peer)
 static struct peer *new_peer(struct daemon *daemon,
 			     const struct node_id *id,
 			     const struct crypto_state *cs,
-			     const u8 *their_features,
+			     const u8 *their_features TAKES,
 			     enum is_websocket is_websocket,
 			     struct timemono connect_starttime,
 			     struct io_conn *conn STEALS,
@@ -154,6 +154,7 @@ static struct peer *new_peer(struct daemon *daemon,
 	peer->onionmsg_incoming_tokens = ONION_MSG_TOKENS_MAX;
 	peer->onionmsg_last_incoming = time_mono();
 	peer->onionmsg_limit_warned = false;
+	peer->their_features = tal_dup_talarr(peer, u8, their_features);
 
 	peer->to_peer = conn;
 
@@ -320,10 +321,6 @@ struct io_plan *peer_connected(struct io_conn *conn,
 		destroy_peer_immediately(oldpeer);
 	}
 
-	/* We promised we'd take it by marking it TAKEN above; prepare to free it. */
-	if (taken(their_features))
-		tal_steal(tmpctx, their_features);
-
 	/* BOLT #1:
 	 *
 	 * The receiving node:
@@ -336,6 +333,9 @@ struct io_plan *peer_connected(struct io_conn *conn,
 	unsup = features_unsupported(daemon->our_features, their_features,
 				     INIT_FEATURE);
 	if (unsup != -1) {
+		if (taken(their_features))
+			tal_free(their_features);
+
 		/* We were going to send a reconnect message, but not now! */
 		if (oldpeer)
 			send_disconnected(daemon, id, prev_connectd_counter,
@@ -348,6 +348,9 @@ struct io_plan *peer_connected(struct io_conn *conn,
 	}
 
 	if (!feature_check_depends(their_features, &depender, &missing)) {
+		if (taken(their_features))
+			tal_free(their_features);
+
 		/* We were going to send a reconnect message, but not now! */
 		if (oldpeer)
 			send_disconnected(daemon, id, prev_connectd_counter,
@@ -407,11 +410,11 @@ struct io_plan *peer_connected(struct io_conn *conn,
 
 	/* Tell gossipd it can ask query this new peer for gossip */
 	option_gossip_queries = feature_negotiated(daemon->our_features,
-						   their_features,
+						   peer->their_features,
 						   OPT_GOSSIP_QUERIES);
 
 	/* Get ready for streaming gossip from the store */
-	setup_peer_gossip_store(peer, daemon->our_features, their_features);
+	setup_peer_gossip_store(peer, daemon->our_features, peer->their_features);
 
 	/* Create message to tell master peer has connected/reconnected. */
 	if (oldpeer) {
@@ -419,7 +422,7 @@ struct io_plan *peer_connected(struct io_conn *conn,
 						       prev_connectd_counter,
 						       peer->counter,
 						       addr, remote_addr,
-						       incoming, their_features,
+						       incoming, peer->their_features,
 						       time_to_nsec(timemono_since(prev_connect_start)));
 	} else {
 		/* Tell gossipd about new peer */
@@ -428,7 +431,7 @@ struct io_plan *peer_connected(struct io_conn *conn,
 
 		msg = towire_connectd_peer_connected(NULL, id, peer->counter,
 						     addr, remote_addr,
-						     incoming, their_features,
+						     incoming, peer->their_features,
 						     connect_reason,
 						     connect_time_nsec);
 	}
@@ -1692,8 +1695,7 @@ static void connect_init(struct daemon *daemon, const u8 *msg)
 				    &daemon->dev_no_reconnect,
 				    &daemon->dev_fast_reconnect,
 				    &dev_limit_connections_inflight,
-				    &daemon->dev_keep_nagle,
-				    &daemon->dev_uniform_padding)) {
+				    &daemon->dev_keep_nagle)) {
 		/* This is a helper which prints the type expected and the actual
 		 * message, then exits (it should never be called!). */
 		master_badmsg(WIRE_CONNECTD_INIT, msg);
@@ -1829,30 +1831,6 @@ static void connect_activate(struct daemon *daemon, const u8 *msg)
 			 take(towire_connectd_activate_reply(NULL, errmsg)));
 }
 
-/* BOLT #10:
- *
- * The DNS seed:
- *   ...
- *   - upon receiving a _node_ query:
- *     - MUST select the record matching the `node_id`, if any, AND return all
- *       addresses associated with that node.
- */
-static const char **seednames(const tal_t *ctx, const struct node_id *id)
-{
-	char bech32[100];
-	u5 *data = tal_arr(ctx, u5, 0);
-	const char **seednames = tal_arr(ctx, const char *, 0);
-
-	bech32_push_bits(&data, id->k, ARRAY_SIZE(id->k)*8);
-	bech32_encode(bech32, "ln", data, tal_count(data), sizeof(bech32),
-		      BECH32_ENCODING_BECH32);
-	/* This is cdecker's seed */
-	tal_arr_expand(&seednames, tal_fmt(seednames, "%s.lseed.bitcoinstats.com", bech32));
-	/* This is darosior's seed */
-	tal_arr_expand(&seednames, tal_fmt(seednames, "%s.lseed.darosior.ninja", bech32));
-	return seednames;
-}
-
 static bool addr_in(const struct wireaddr_internal *needle,
 		    const struct wireaddr_internal haystack[])
 {
@@ -1869,7 +1847,6 @@ static void try_connect_peer(struct daemon *daemon,
 			     struct wireaddr_internal *addrs TAKES,
 			     const char *reason TAKES)
 {
-	bool use_proxy = daemon->always_use_proxy;
 	struct connecting *connect;
 	struct peer *peer;
 
@@ -1895,22 +1872,6 @@ static void try_connect_peer(struct daemon *daemon,
 		}
 
 		return;
-	}
-
-	if (tal_count(addrs) == 0) {
-		/* Don't resolve via DNS seed if we're supposed to use proxy. */
-		if (use_proxy) {
-			/* You're allowed to use names with proxies; in fact it's
-			 * a good idea. */
-			struct wireaddr_internal unresolved;
-			const char **hostnames = seednames(tmpctx, id);
-			for (size_t i = 0; i < tal_count(hostnames); i++) {
-				wireaddr_from_unresolved(&unresolved,
-				                         hostnames[i],
-				                         chainparams_get_ln_port(chainparams));
-				tal_arr_expand(&addrs, unresolved);
-			}
-		}
 	}
 
 	/* Still no address?  Fail immediately.  Important ones get
@@ -2570,7 +2531,6 @@ int main(int argc, char *argv[])
 	daemon->dev_exhausted_fds = false;
 	daemon->dev_lightningd_is_slow = false;
 	daemon->dev_keep_nagle = false;
-	daemon->dev_uniform_padding = false;
 	/* We generally allow 1MB per second per peer, except for dev testing */
 	daemon->gossip_stream_limit = 1000000;
 	daemon->incoming_stream_limit = 1000000;

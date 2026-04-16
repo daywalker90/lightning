@@ -46,15 +46,16 @@
           "{currencydebit}: debit amount converted into bkpr-currency",
           "{currencycreditdebit}: +credit or -debit (or 0) in bkpr-currency",
           "",
-          "If a field is unavailable, it expands to an empty string.",
+          "If a field is unavailable, it expands to an empty string (or 0 for credit, debit, fees and creditdebit).",
           "",
-          "You can provide fallback with ?, including more variable:",
-          " * {outpoint?NONE}",
-          " * {payment_id?txid: {txid?UNKNOWN}}",
-          "The first one the outpoint, or NONE if that is not available. ",
-          "The second prints the payment_id, or if that is not available, the string 'txid: ' followed by the txid, or if that is not available, 'txid: UNKNOWN'.",
-          "",
-          "The text after ? is used only if that tag would otherwise be empty.",
+          "Tags support C-style conditional syntax: {tag[?if-set][:if-not-set]}",
+          " * if-set: text to use when the tag is present (and non-zero for credit, debit, fees and creditdebit).  Default is the tag value itself.",
+          " * if-not-set: text to use when the tag is absent (or zero for amount fields).  Default is empty string (or 0 for amount fields).",
+          "Either or both parts may be omitted, and each part can itself contain tags.  For example:",
+          " * {outpoint:NONE}: the outpoint value, or 'NONE' if not available",
+          " * {credit:0.00}: the credit value, or '0.00' if zero",
+          " * {outpoint?[{outpoint}]:NONE}: '[<value>]' if outpoint is available, or 'NONE' if not",
+          " * {payment_id:{txid:UNKNOWN}}: the payment_id, or the txid if no payment_id, or 'UNKNOWN' if neither",
           "",
           "To include a literal {, write {{."
         ]
@@ -112,6 +113,30 @@
       }
     }
   },
+  "examples": [
+    {
+      "request": {
+        "id": "example:bkpr-report#1",
+        "method": "bkpr-report",
+        "params": {
+          "headers": [
+            "Date,Tag,Account,Description,Credit,Debit,BTC/USD,Credit (USD),Debit(USD)"
+          ],
+          "format": "{localtime},{tag},{account},{description?Invoice description {description}:{outpoint?Onchain output {outpoint}:{txid?Onchain transaction {txid}}}},{credit?+{credit}:0},{debit?-{debit}:0},{currencyrate},${currencycredit},${currencydebit}",
+          "escape": "csv"
+        }
+      },
+      "response": {
+        "report": [
+          "Date,Tag,Account,Description,Credit,Debit,BTC/USD,Credit (USD),Debit(USD)",
+          "2026-04-02 12:42:03,deposit,wallet,Onchain output 37562cf0b3a5d6783ae02925bcc486bb89afe156abf15e692736e5da9a060018:1,+0.02000000000,0,67140.89,$1342.81,$0.00",
+          "2026-04-02 12:42:04,invoice,9b3114c8003dc8dedbcf3b7bc9fb04e1575a1112aea33be8369ae9670aff64f4,Invoice description test_bkpr_report_invoice,0,-0.00000123456,67140.89,$0.00,$0.08",
+          "2026-04-02 12:42:04,onchain_fee,9b3114c8003dc8dedbcf3b7bc9fb04e1575a1112aea33be8369ae9670aff64f4,Onchain transaction f464ff0a67e99a36e83ba3ae12115a57e104fbc97b3bcfdbdec83d00c814319b,0,-0.00004927000,67140.89,$0.00,$3.30"
+        ],
+        "format-hint": "simple"
+      }
+    }
+  ],
   "author": [
     "Rusty Russell [rusty@rustcorp.com.au](mailto:rusty@rustcorp.com.au) is mainly responsible."
   ],

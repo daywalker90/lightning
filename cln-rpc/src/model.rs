@@ -126,6 +126,8 @@ pub enum Request {
 	SpliceSigned(requests::SpliceSignedRequest),
 	#[serde(rename = "splice_update")]
 	SpliceUpdate(requests::SpliceUpdateRequest),
+	SpliceIn(requests::SpliceinRequest),
+	SpliceOut(requests::SpliceoutRequest),
 	#[serde(rename = "dev-splice")]
 	DevSplice(requests::DevspliceRequest),
 	UnreserveInputs(requests::UnreserveinputsRequest),
@@ -154,6 +156,8 @@ pub enum Request {
 	BkprEditDescriptionByPaymentId(requests::BkpreditdescriptionbypaymentidRequest),
 	#[serde(rename = "bkpr-editdescriptionbyoutpoint")]
 	BkprEditDescriptionByOutpoint(requests::BkpreditdescriptionbyoutpointRequest),
+	#[serde(rename = "bkpr-report")]
+	BkprReport(requests::BkprreportRequest),
 	BlacklistRune(requests::BlacklistruneRequest),
 	CheckRune(requests::CheckruneRequest),
 	CreateRune(requests::CreateruneRequest),
@@ -314,6 +318,8 @@ pub enum Response {
 	SpliceSigned(responses::SpliceSignedResponse),
 	#[serde(rename = "splice_update")]
 	SpliceUpdate(responses::SpliceUpdateResponse),
+	SpliceIn(responses::SpliceinResponse),
+	SpliceOut(responses::SpliceoutResponse),
 	#[serde(rename = "dev-splice")]
 	DevSplice(responses::DevspliceResponse),
 	UnreserveInputs(responses::UnreserveinputsResponse),
@@ -342,6 +348,8 @@ pub enum Response {
 	BkprEditDescriptionByPaymentId(responses::BkpreditdescriptionbypaymentidResponse),
 	#[serde(rename = "bkpr-editdescriptionbyoutpoint")]
 	BkprEditDescriptionByOutpoint(responses::BkpreditdescriptionbyoutpointResponse),
+	#[serde(rename = "bkpr-report")]
+	BkprReport(responses::BkprreportResponse),
 	BlacklistRune(responses::BlacklistruneResponse),
 	CheckRune(responses::CheckruneResponse),
 	CreateRune(responses::CreateruneResponse),
@@ -3702,6 +3710,56 @@ pub mod requests {
 	    }
 	}
 	#[derive(Clone, Debug, Deserialize, Serialize)]
+	pub struct SpliceinRequest {
+	    pub amount: String,
+	    pub channel: String,
+	}
+
+	impl From<SpliceinRequest> for Request {
+	    fn from(r: SpliceinRequest) -> Self {
+	        Request::SpliceIn(r)
+	    }
+	}
+
+	impl IntoRequest for SpliceinRequest {
+	    type Response = super::responses::SpliceinResponse;
+	}
+
+	impl TypedRequest for SpliceinRequest {
+	    type Response = super::responses::SpliceinResponse;
+
+	    fn method(&self) -> &str {
+	        "splicein"
+	    }
+	}
+	#[derive(Clone, Debug, Deserialize, Serialize)]
+	pub struct SpliceoutRequest {
+	    #[serde(skip_serializing_if = "Option::is_none")]
+	    pub destination: Option<String>,
+	    #[serde(skip_serializing_if = "Option::is_none")]
+	    pub force_feerate: Option<bool>,
+	    pub amount: String,
+	    pub channel: String,
+	}
+
+	impl From<SpliceoutRequest> for Request {
+	    fn from(r: SpliceoutRequest) -> Self {
+	        Request::SpliceOut(r)
+	    }
+	}
+
+	impl IntoRequest for SpliceoutRequest {
+	    type Response = super::responses::SpliceoutResponse;
+	}
+
+	impl TypedRequest for SpliceoutRequest {
+	    type Response = super::responses::SpliceoutResponse;
+
+	    fn method(&self) -> &str {
+	        "spliceout"
+	    }
+	}
+	#[derive(Clone, Debug, Deserialize, Serialize)]
 	pub struct DevspliceRequest {
 	    #[serde(rename = "dev-wetrun")]
 	    #[serde(skip_serializing_if = "Option::is_none")]
@@ -4243,6 +4301,37 @@ pub mod requests {
 
 	    fn method(&self) -> &str {
 	        "bkpr-editdescriptionbyoutpoint"
+	    }
+	}
+	#[derive(Clone, Debug, Deserialize, Serialize)]
+	pub struct BkprreportRequest {
+	    #[serde(skip_serializing_if = "Option::is_none")]
+	    pub end_time: Option<u32>,
+	    #[serde(skip_serializing_if = "Option::is_none")]
+	    pub escape: Option<String>,
+	    #[serde(skip_serializing_if = "Option::is_none")]
+	    pub format: Option<String>,
+	    #[serde(skip_serializing_if = "Option::is_none")]
+	    pub start_time: Option<u32>,
+	    #[serde(skip_serializing_if = "crate::is_none_or_empty")]
+	    pub headers: Option<Vec<String>>,
+	}
+
+	impl From<BkprreportRequest> for Request {
+	    fn from(r: BkprreportRequest) -> Self {
+	        Request::BkprReport(r)
+	    }
+	}
+
+	impl IntoRequest for BkprreportRequest {
+	    type Response = super::responses::BkprreportResponse;
+	}
+
+	impl TypedRequest for BkprreportRequest {
+	    type Response = super::responses::BkprreportResponse;
+
+	    fn method(&self) -> &str {
+	        "bkpr-report"
 	    }
 	}
 	#[derive(Clone, Debug, Deserialize, Serialize)]
@@ -8241,6 +8330,8 @@ pub mod responses {
 	    #[serde(skip_serializing_if = "Option::is_none")]
 	    pub description: Option<String>,
 	    #[serde(skip_serializing_if = "Option::is_none")]
+	    pub force_paths: Option<bool>,
+	    #[serde(skip_serializing_if = "Option::is_none")]
 	    pub label: Option<String>,
 	    pub active: bool,
 	    pub bolt12: String,
@@ -8264,6 +8355,8 @@ pub mod responses {
 	pub struct EnableofferResponse {
 	    #[serde(skip_serializing_if = "Option::is_none")]
 	    pub description: Option<String>,
+	    #[serde(skip_serializing_if = "Option::is_none")]
+	    pub force_paths: Option<bool>,
 	    #[serde(skip_serializing_if = "Option::is_none")]
 	    pub label: Option<String>,
 	    pub active: bool,
@@ -8942,6 +9035,8 @@ pub mod responses {
 	    #[serde(skip_serializing_if = "Option::is_none")]
 	    pub description: Option<String>,
 	    #[serde(skip_serializing_if = "Option::is_none")]
+	    pub force_paths: Option<bool>,
+	    #[serde(skip_serializing_if = "Option::is_none")]
 	    pub label: Option<String>,
 	    pub active: bool,
 	    pub bolt12: String,
@@ -9220,6 +9315,8 @@ pub mod responses {
 
 	#[derive(Clone, Debug, Deserialize, Serialize)]
 	pub struct OfferResponse {
+	    #[serde(skip_serializing_if = "Option::is_none")]
+	    pub force_paths: Option<bool>,
 	    #[serde(skip_serializing_if = "Option::is_none")]
 	    pub label: Option<String>,
 	    pub active: bool,
@@ -9828,6 +9925,48 @@ pub mod responses {
 	}
 
 	#[derive(Clone, Debug, Deserialize, Serialize)]
+	pub struct SpliceinResponse {
+	    #[serde(skip_serializing_if = "Option::is_none")]
+	    pub psbt: Option<String>,
+	    #[serde(skip_serializing_if = "Option::is_none")]
+	    pub tx: Option<String>,
+	    #[serde(skip_serializing_if = "Option::is_none")]
+	    pub txid: Option<String>,
+	}
+
+	impl TryFrom<Response> for SpliceinResponse {
+	    type Error = super::TryFromResponseError;
+
+	    fn try_from(response: Response) -> Result<Self, Self::Error> {
+	        match response {
+	            Response::SpliceIn(response) => Ok(response),
+	            _ => Err(TryFromResponseError)
+	        }
+	    }
+	}
+
+	#[derive(Clone, Debug, Deserialize, Serialize)]
+	pub struct SpliceoutResponse {
+	    #[serde(skip_serializing_if = "Option::is_none")]
+	    pub psbt: Option<String>,
+	    #[serde(skip_serializing_if = "Option::is_none")]
+	    pub tx: Option<String>,
+	    #[serde(skip_serializing_if = "Option::is_none")]
+	    pub txid: Option<String>,
+	}
+
+	impl TryFrom<Response> for SpliceoutResponse {
+	    type Error = super::TryFromResponseError;
+
+	    fn try_from(response: Response) -> Result<Self, Self::Error> {
+	        match response {
+	            Response::SpliceOut(response) => Ok(response),
+	            _ => Err(TryFromResponseError)
+	        }
+	    }
+	}
+
+	#[derive(Clone, Debug, Deserialize, Serialize)]
 	pub struct DevspliceResponse {
 	    #[serde(skip_serializing_if = "Option::is_none")]
 	    pub psbt: Option<String>,
@@ -10360,6 +10499,12 @@ pub mod responses {
 	}
 
 	#[derive(Clone, Debug, Deserialize, Serialize)]
+	pub struct ListconfigsConfigsExperimentalsplicing {
+	    pub set: bool,
+	    pub source: String,
+	}
+
+	#[derive(Clone, Debug, Deserialize, Serialize)]
 	pub struct ListconfigsConfigsMaxlocktimeblocks {
 	    pub source: String,
 	    pub value_int: u32,
@@ -10552,12 +10697,6 @@ pub mod responses {
 
 	#[derive(Clone, Debug, Deserialize, Serialize)]
 	pub struct ListconfigsConfigsExperimentalshutdownwrongfunding {
-	    pub set: bool,
-	    pub source: String,
-	}
-
-	#[derive(Clone, Debug, Deserialize, Serialize)]
-	pub struct ListconfigsConfigsExperimentalsplicing {
 	    pub set: bool,
 	    pub source: String,
 	}
@@ -10862,6 +11001,10 @@ pub mod responses {
 	    #[serde(skip_serializing_if = "Option::is_none")]
 	    pub experimental_onion_messages: Option<ListconfigsConfigsExperimentalonionmessages>,
 	    #[deprecated]
+	    #[serde(rename = "experimental-splicing")]
+	    #[serde(skip_serializing_if = "Option::is_none")]
+	    pub experimental_splicing: Option<ListconfigsConfigsExperimentalsplicing>,
+	    #[deprecated]
 	    #[serde(rename = "max-locktime-blocks")]
 	    #[serde(skip_serializing_if = "Option::is_none")]
 	    pub max_locktime_blocks: Option<ListconfigsConfigsMaxlocktimeblocks>,
@@ -10940,9 +11083,6 @@ pub mod responses {
 	    #[serde(rename = "experimental-shutdown-wrong-funding")]
 	    #[serde(skip_serializing_if = "Option::is_none")]
 	    pub experimental_shutdown_wrong_funding: Option<ListconfigsConfigsExperimentalshutdownwrongfunding>,
-	    #[serde(rename = "experimental-splicing")]
-	    #[serde(skip_serializing_if = "Option::is_none")]
-	    pub experimental_splicing: Option<ListconfigsConfigsExperimentalsplicing>,
 	    #[serde(rename = "fee-base")]
 	    #[serde(skip_serializing_if = "Option::is_none")]
 	    pub fee_base: Option<ListconfigsConfigsFeebase>,
@@ -11664,6 +11804,22 @@ pub mod responses {
 	    fn try_from(response: Response) -> Result<Self, Self::Error> {
 	        match response {
 	            Response::BkprEditDescriptionByOutpoint(response) => Ok(response),
+	            _ => Err(TryFromResponseError)
+	        }
+	    }
+	}
+
+	#[derive(Clone, Debug, Deserialize, Serialize)]
+	pub struct BkprreportResponse {
+	    pub report: Vec<String>,
+	}
+
+	impl TryFrom<Response> for BkprreportResponse {
+	    type Error = super::TryFromResponseError;
+
+	    fn try_from(response: Response) -> Result<Self, Self::Error> {
+	        match response {
+	            Response::BkprReport(response) => Ok(response),
 	            _ => Err(TryFromResponseError)
 	        }
 	    }

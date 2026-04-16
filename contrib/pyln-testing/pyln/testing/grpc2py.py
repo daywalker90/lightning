@@ -1151,6 +1151,8 @@ def decode_invoice_paths_payinfo2py(m):
         "features": hexlify(m.features),  # PrimitiveField in generate_composite
         "fee_base_msat": amount2msat(m.fee_base_msat),  # PrimitiveField in generate_composite
         "fee_proportional_millionths": m.fee_proportional_millionths,  # PrimitiveField in generate_composite
+        "htlc_maximum_msat": amount2msat(m.htlc_maximum_msat),  # PrimitiveField in generate_composite
+        "htlc_minimum_msat": amount2msat(m.htlc_minimum_msat),  # PrimitiveField in generate_composite
     })
 
 
@@ -1386,6 +1388,7 @@ def disableoffer2py(m):
         "active": m.active,  # PrimitiveField in generate_composite
         "bolt12": m.bolt12,  # PrimitiveField in generate_composite
         "description": m.description,  # PrimitiveField in generate_composite
+        "force_paths": m.force_paths,  # PrimitiveField in generate_composite
         "label": m.label,  # PrimitiveField in generate_composite
         "offer_id": hexlify(m.offer_id),  # PrimitiveField in generate_composite
         "single_use": m.single_use,  # PrimitiveField in generate_composite
@@ -1398,6 +1401,7 @@ def enableoffer2py(m):
         "active": m.active,  # PrimitiveField in generate_composite
         "bolt12": m.bolt12,  # PrimitiveField in generate_composite
         "description": m.description,  # PrimitiveField in generate_composite
+        "force_paths": m.force_paths,  # PrimitiveField in generate_composite
         "label": m.label,  # PrimitiveField in generate_composite
         "offer_id": hexlify(m.offer_id),  # PrimitiveField in generate_composite
         "single_use": m.single_use,  # PrimitiveField in generate_composite
@@ -1679,6 +1683,7 @@ def listoffers_offers2py(m):
         "active": m.active,  # PrimitiveField in generate_composite
         "bolt12": m.bolt12,  # PrimitiveField in generate_composite
         "description": m.description,  # PrimitiveField in generate_composite
+        "force_paths": m.force_paths,  # PrimitiveField in generate_composite
         "label": m.label,  # PrimitiveField in generate_composite
         "offer_id": hexlify(m.offer_id),  # PrimitiveField in generate_composite
         "single_use": m.single_use,  # PrimitiveField in generate_composite
@@ -1790,6 +1795,7 @@ def offer2py(m):
         "active": m.active,  # PrimitiveField in generate_composite
         "bolt12": m.bolt12,  # PrimitiveField in generate_composite
         "created": m.created,  # PrimitiveField in generate_composite
+        "force_paths": m.force_paths,  # PrimitiveField in generate_composite
         "label": m.label,  # PrimitiveField in generate_composite
         "offer_id": hexlify(m.offer_id),  # PrimitiveField in generate_composite
         "single_use": m.single_use,  # PrimitiveField in generate_composite
@@ -2045,6 +2051,22 @@ def splice_update2py(m):
         "commitments_secured": m.commitments_secured,  # PrimitiveField in generate_composite
         "psbt": m.psbt,  # PrimitiveField in generate_composite
         "signatures_secured": m.signatures_secured,  # PrimitiveField in generate_composite
+    })
+
+
+def splicein2py(m):
+    return remove_default({
+        "psbt": m.psbt,  # PrimitiveField in generate_composite
+        "tx": m.tx,  # PrimitiveField in generate_composite
+        "txid": m.txid,  # PrimitiveField in generate_composite
+    })
+
+
+def spliceout2py(m):
+    return remove_default({
+        "psbt": m.psbt,  # PrimitiveField in generate_composite
+        "tx": m.tx,  # PrimitiveField in generate_composite
+        "txid": m.txid,  # PrimitiveField in generate_composite
     })
 
 
@@ -2930,6 +2952,12 @@ def bkpr_editdescriptionbyoutpoint_updated2py(m):
 def bkpr_editdescriptionbyoutpoint2py(m):
     return remove_default({
         "updated": [bkpr_editdescriptionbyoutpoint_updated2py(i) for i in m.updated],  # ArrayField[composite] in generate_composite
+    })
+
+
+def bkpr_report2py(m):
+    return remove_default({
+        "report": [m.report for i in m.report], # ArrayField[primitive] in generate_composite
     })
 
 
