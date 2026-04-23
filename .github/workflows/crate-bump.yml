@@ -25,15 +25,15 @@ jobs:
       uses: arduino/setup-protoc@v3
 
     - name: Setup rust
-      uses: dtolnay/rust-toolchain@1.77
+      uses: dtolnay/rust-toolchain@1.85
 
     - name: Install cargo binstall
       uses: cargo-bins/cargo-binstall@main
 
     - name: Install cargo-release and cargo-semver-checks
       run: |
-        cargo binstall cargo-release --version 0.25.10
-        cargo binstall cargo-semver-checks --version 0.36.0
+        cargo binstall cargo-release --version 0.25.18
+        cargo binstall cargo-semver-checks --version 0.42.0
 
     - name: Determine version
       id: determine-version
