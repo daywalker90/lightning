@@ -1029,7 +1029,7 @@ def test_cli(node_factory):
                                    .format(l1.daemon.lightning_dir),
                                    'help']).decode('utf-8')
     # Test some known output.
-    assert 'addgossip message\n\naddpsbtinput' in out
+    assert 'addgossip message\n\naddoutpointwatch' in out
 
     # Check JSON id is as expected
     l1.daemon.wait_for_log(r'jsonrpc#[0-9]*: "cli:help#[0-9]*"\[IN\]')
@@ -1255,7 +1255,7 @@ def test_cli_commando(node_factory):
                                    .format(l1.daemon.lightning_dir),
                                    'help']).decode('utf-8')
     # Test some known output.
-    assert 'addgossip message\n\naddpsbtinput' in out
+    assert 'addgossip message\n\naddoutpointwatch' in out
 
     # Check JSON id is as expected
     l1.daemon.wait_for_log(r'jsonrpc#[0-9]*: "cli:help#[0-9]*"\[IN\]')
@@ -1362,7 +1362,7 @@ def test_daemon_option(node_factory):
                                    '--lightning-dir={}'
                                    .format(l1.daemon.lightning_dir),
                                    'help']).decode('utf-8')
-    assert 'addgossip message\n\naddpsbtinput' in out
+    assert 'addgossip message\n\naddoutpointwatch' in out
 
     subprocess.run(['cli/lightning-cli',
                     '--network={}'.format(TEST_NETWORK),
