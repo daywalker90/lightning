@@ -41,13 +41,13 @@ async fn main() -> Result<(), anyhow::Error> {
         // Therefore, no concurrent access is possible.
         std::env::set_var(
             "CLN_PLUGIN_LOG",
-            "cln_plugin=info,cln_rpc=info,cln_currencyrate=debug,warn",
+            "cln_plugin=info,cln_rpc=info,cln_currencyrate=trace,trace",
         )
     };
 
     log_panics::init();
 
-    let _ = rustls::crypto::ring::default_provider().install_default();
+    // let _ = rustls::crypto::ring::default_provider().install_default();
 
     let add_source_opt = StringArrayConfigOption::new_str_arr_no_default(
         "currencyrate-add-source",

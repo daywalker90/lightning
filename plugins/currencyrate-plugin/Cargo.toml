@@ -18,17 +18,29 @@ tokio = { version = "1" }
 
 log-panics = "2"
 
-reqwest = { version = "0.13", default-features = false, features = [
-    "rustls-no-provider",
-    "socks",
-    "json",
+# reqwest = { version = "0.13", default-features = false, features = [
+#     "rustls-no-provider",
+#     "socks",
+#     "json",
+# ] }
+# bitreq = { git = "https://github.com/FreeOnlineUser/corepc", branch = "socks5-proxy", default-features = false, features = [
+#     "proxy",
+#     "async-https-rustls",
+#     "json-using-serde",
+#     "log",
+# ] }
+bitreq = { path = "../../../corepc/bitreq", default-features = false, features = [
+    "proxy",
+    "async-https-rustls",
+    "json-using-serde",
+    "log",
 ] }
-rustls = { version = "0.23", default-features = false, features = [
-    "logging",
-    "tls12",
-    "std",
-    "ring",
-] }
+# rustls = { version = "0.23", default-features = false, features = [
+#     "logging",
+#     "tls12",
+#     "std",
+#     "ring",
+# ] }
 
 futures = "0.3"
 

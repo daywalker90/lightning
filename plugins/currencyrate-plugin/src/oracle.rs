@@ -1,11 +1,9 @@
 use anyhow::anyhow;
+use bitreq::Client;
 use futures::future::join_all;
-use reqwest::header::{HeaderMap, HeaderValue, USER_AGENT};
-use reqwest::{Client, Proxy};
 use serde_json::Value;
 use std::cmp::Reverse;
 use std::collections::HashMap;
-use std::error::Error;
 use std::net::SocketAddr;
 use std::sync::Arc;
 use std::time::{Duration, Instant};
@@ -62,26 +60,49 @@ impl Source {
         &self.name
     }
 
-    async fn get_rate(&self, client: &Client, currency: &str) -> Result<f64, anyhow::Error> {
+    async fn get_rate(
+        &self,
+        tor_proxy: Option<SocketAddr>,
+        client: &Client,
+        currency: &str,
+    ) -> Result<f64, anyhow::Error> {
         let now = Instant::now();
 
         let currency_lc = currency.to_lowercase();
         let currency = currency.to_uppercase();
         let url = self.url(&currency_lc, &currency);
 
-        let resp: Value = client
-            .get(&url)
-            .send()
-            .await
-            .map_err(|e| anyhow!("Failed to request url {url} caused by: {:?}", e.source()))?
-            .json()
-            .await
-            .map_err(|e| {
-                anyhow!(
-                    "Failed to decode response body from {url}, caused by: {:?}",
-                    e.source()
-                )
-            })?;
+        let mut request = bitreq::get(&url).with_header("User-Agent", "cln-currencyrate");
+
+        if let Some(tp) = tor_proxy {
+            request = request.with_proxy(bitreq::Proxy::new_socks5(format!("socks5h://{tp}"))?);
+        }
+
+        let raw_resp: bitreq::Response = client.send_async(request).await?;
+
+        let resp: Value = match raw_resp.json() {
+            Ok(resp) => resp,
+            Err(e) => {
+                return Err(anyhow!(
+                    "Could not decode: {} as json: {e}",
+                    raw_resp.as_str().unwrap()
+                ));
+            }
+        };
+
+        // let resp: Value = client
+        //     .get(&url)
+        //     .send()
+        //     .await
+        //     .map_err(|e| anyhow!("Failed to request url {url} caused by: {:?}", e.source()))?
+        //     .json()
+        //     .await
+        //     .map_err(|e| {
+        //         anyhow!(
+        //             "Failed to decode response body from {url}, caused by: {:?}",
+        //             e.source()
+        //         )
+        //     })?;
 
         let reply_members = self.reply_members(&currency_lc, &currency);
 
@@ -237,27 +258,28 @@ impl OracleInner {
 pub struct BtcPriceOracle {
     inner: Arc<Mutex<OracleInner>>,
     client: Client,
+    tor_proxy: Option<SocketAddr>,
 }
 
 impl BtcPriceOracle {
     pub fn new(tor_proxy: Option<SocketAddr>, sources: Vec<Source>) -> Result<Self, anyhow::Error> {
-        let mut headers = HeaderMap::new();
-        headers.insert(USER_AGENT, HeaderValue::from_static("cln-currencyrate"));
+        // let mut headers = BTreeMap::new();
+        // headers.insert("User-Agent", "cln-currencyrate");
 
-        let mut client = Client::builder()
-            .default_headers(headers)
-            .tls_backend_rustls()
-            .timeout(SOURCE_TIMEOUT_SECS)
-            .pool_max_idle_per_host(5);
+        let client = Client::new(sources.len());
+        // .default_headers(headers)
+        // .tls_backend_rustls()
+        // .timeout(SOURCE_TIMEOUT_SECS)
+        // .pool_max_idle_per_host(5);
 
-        if let Some(tp) = tor_proxy {
-            let proxy_url = format!("socks5h://{tp}");
-            let proxy = Proxy::all(&proxy_url)?;
+        // if let Some(tp) = tor_proxy {
+        //     let proxy_url = format!("socks5h://{tp}");
+        //     let proxy = Proxy::all(&proxy_url)?;
 
-            client = client.proxy(proxy);
-        }
+        //     client = client.proxy(proxy);
+        // }
 
-        let client = client.build()?;
+        // let client = client.build()?;
 
         let mut map = HashMap::new();
         for s in sources {
@@ -270,6 +292,7 @@ impl BtcPriceOracle {
                 currencies: HashMap::new(),
             })),
             client,
+            tor_proxy,
         })
     }
 
@@ -375,7 +398,7 @@ impl BtcPriceOracle {
                     inner.sources.get(&source_name).unwrap().source.clone()
                 };
 
-                let rate_result = source.get_rate(&client, currency).await;
+                let rate_result = source.get_rate(self.tor_proxy, &client, currency).await;
 
                 let mut inner = inner.lock().await;
 
@@ -422,6 +445,7 @@ impl BtcPriceOracle {
     fn background_refresh(&self, currency: &str) {
         let inner = self.inner.clone();
         let client = self.client.clone();
+        let proxy = self.tor_proxy.clone();
         let currency = currency.to_owned();
         tokio::spawn(async move {
             tokio::time::sleep(SOURCE_TIMEOUT_SECS * 5).await;
@@ -477,7 +501,11 @@ impl BtcPriceOracle {
 
                 for (name, _) in sources_by_staleness {
                     let source_health = inner.sources.get_mut(&name).unwrap();
-                    match source_health.source.get_rate(&client, &currency).await {
+                    match source_health
+                        .source
+                        .get_rate(proxy, &client, &currency)
+                        .await
+                    {
                         Ok(price) => {
                             source_health.mark_success();
 

@@ -139,15 +139,15 @@ async fn fetch_payment_instructions(
 ) -> Result<PaymentInstructions, anyhow::Error> {
     let hrn_resolver = match get_proxy(plugin) {
         Some(proxy_info) => {
-            let proxy = reqwest::Proxy::all(format!(
+            let proxy = bitreq::Proxy::new_socks5(format!(
                 "socks5h://{}:{}",
                 proxy_info.address, proxy_info.port
             ))?;
-            let client = reqwest::Client::builder()
-                .proxy(proxy)
-                .timeout(Duration::from_secs(30))
-                .build()?;
-            HTTPHrnResolver::with_client(client)
+            // let client = reqwest::Client::builder()
+            //     .proxy(proxy)
+            //     .timeout(Duration::from_secs(30))
+            //     .build()?;
+            HTTPHrnResolver::new_proxied(proxy)
         }
         None => HTTPHrnResolver::new(),
     };
