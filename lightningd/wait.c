@@ -93,25 +93,6 @@ static void json_add_index(struct command *cmd,
 		return;
 
 	va_copy(ap2, *ap);
-	/* "htlcs" etc never had details field: they came after! */
-	if (subsystem < WAIT_SUBSYSTEM_HTLCS
-	    && command_deprecated_out_ok(cmd, "details", "v25.05", "v26.06")) {
-		json_object_start(response, "details");
-		while ((name = va_arg(*ap, const char *)) != NULL) {
-			value = va_arg(*ap, const char *);
-			if (!value)
-				continue;
-
-			/* This is a hack! */
-			if (name[0] == '=') {
-				/* Copy in literallty! */
-				json_add_jsonstr(response, name + 1, value, strlen(value));
-			} else {
-				json_add_string(response, name, value);
-			}
-		}
-		json_object_end(response);
-	}
 
 	json_object_start(response, wait_subsystem_name(subsystem));
 	while ((name = va_arg(ap2, const char *)) != NULL) {
