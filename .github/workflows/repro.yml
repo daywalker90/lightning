@@ -34,6 +34,23 @@ jobs:
           echo "STEP=Builder image setup" >> "$GITHUB_ENV"
           docker build -t cl-repro-${{ matrix.version }} - < contrib/reprobuild/Dockerfile.${{ matrix.version }}
 
+      - name: Collect SHASUMS baseline (resolute)
+        if: matrix.version == 'resolute'
+        run: |
+          set -e
+
+          PKG_REGEX='autoconf|automake|libtool|make|gcc|libsqlite3|zlib1g|libsodium'
+
+          docker run --rm ubuntu:resolute bash -c '
+            set -e
+            apt-get update
+            apt-get install -y --no-install-recommends --reinstall -d \
+              autoconf automake libtool make gcc \
+              libsqlite3-dev zlib1g-dev libsodium-dev
+
+            sha256sum /var/cache/apt/archives/*.deb
+          ' | grep -E "$PKG_REGEX" | sort | tee resolute-shasums.txt
+
       - name: Build reproducible image and store Git state - ${{ matrix.version }}
         run: |
           echo "STEP=Build reproducible image and store Git state" >> "$GITHUB_ENV"

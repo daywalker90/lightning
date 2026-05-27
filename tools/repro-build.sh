@@ -14,6 +14,9 @@ for arg; do
     --force-mtime=*)
 	FORCE_MTIME=${arg#*=}
 	;;
+    --generate-shasums)
+    GENERATE_SHASUMS=1
+    ;;
     --help)
 	echo "Usage: [--force-version=<ver>] [--force-mtime=YYYY-MM-DD]"
 	exit 0
@@ -141,10 +144,24 @@ bd3e8cd6ab8cf731d8a8a15333831b9081a94ebefe22236fc8713975fe7a6d3a  /var/cache/apt
 023cbe9dbf0af87f10e54e342c67571874e412b9950d89c6cd7b010be2e67c3c  /var/cache/apt/archives/zlib1g-dev_1%3a1.3.dfsg-3.1ubuntu2.1_amd64.deb
 EOF
 	;;
-    *)
-	echo Unsupported platform "$PLATFORM" >&2
-	exit 1
-	;;
+   *)
+    if [ "$GENERATE_SHASUMS" = "1" ]; then
+        echo "Generating SHASUMS for $PLATFORM" >&2
+
+        apt-get update
+        apt-get install -y --no-install-recommends --reinstall -d \
+            $PKGS
+
+        sha256sum /var/cache/apt/archives/*.deb | sort > /tmp/SHASUMS
+
+        cat /tmp/SHASUMS
+
+        exit 0
+    else
+        echo Unsupported platform "$PLATFORM" >&2
+        exit 1
+    fi
+    ;;
 esac
 
 # Download the packages

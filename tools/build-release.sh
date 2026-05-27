@@ -184,7 +184,7 @@ for target in $TARGETS; do
         ;;
     Ubuntu*)
         distributions=${platform#Ubuntu-}
-        [ "$distributions" = "Ubuntu" ] && distributions="focal jammy noble"
+        [ "$distributions" = "Ubuntu" ] && distributions="jammy noble resolute"
         for d in $distributions; do
             # Capitalize the first letter of distro
             D=$(echo "$d" | awk '{print toupper(substr($0,1,1))substr($0,2)}')
