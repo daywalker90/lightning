@@ -1,9 +1,10 @@
-use anyhow::{Context, Result};
+use anyhow::{Context, Result, anyhow};
 use cln_grpc::pb::node_server::NodeServer;
 use cln_plugin::{Builder, Plugin, options};
 use cln_rpc::notifications::Notification;
 use std::net::SocketAddr;
 use std::path::PathBuf;
+use std::time::Duration;
 use tokio::sync::broadcast;
 
 mod tls;
@@ -159,14 +160,100 @@ async fn run_interface(bind_addr: SocketAddr, state: PluginState) -> Result<()> 
         .serve(bind_addr);
 
     log::info!(
-        "Connecting to {:?} and serving grpc on {:?}",
-        &state.rpc_path,
+        "Connecting to {} and serving grpc on {}",
+        state.rpc_path.display(),
         &bind_addr
     );
 
-    server.await.context("serving requests")?;
+    match server.await {
+        Ok(()) => (),
+        Err(e) => {
+            debug_who_uses_port(bind_addr.port());
+            tokio::time::sleep(Duration::from_secs(2)).await;
+            return Err(anyhow!("serving requests: {e}"));
+        }
+    }
 
     Ok(())
+}
+fn debug_who_uses_port(port: u16) {
+    log::info!("🔍 Investigating who is using port {}...", port);
+
+    // First, get the raw socket info
+    let output = std::process::Command::new("ss")
+        .args(["-ltnp", &format!("sport = :{}", port)])
+        .output();
+
+    if let Ok(out) = output {
+        let text = String::from_utf8_lossy(&out.stdout);
+        if !text.trim().is_empty() {
+            log::info!("Socket information:\n{}", text);
+        }
+    }
+
+    // Now extract PIDs and get detailed process info
+    if let Ok(out) = std::process::Command::new("ss")
+        .args(["-ltnp", &format!("sport = :{}", port)])
+        .output()
+    {
+        let text = String::from_utf8_lossy(&out.stdout);
+        let lines: Vec<&str> = text.lines().collect();
+
+        for line in lines {
+            if let Some(pid_start) = line.find("pid=") {
+                if let Some(pid_part) = line[pid_start..].split(',').next() {
+                    let pid_str = pid_part.trim_start_matches("pid=");
+                    if let Ok(pid) = pid_str.parse::<u32>() {
+                        log::info!("Found process with PID {} holding the port", pid);
+                        show_process_details(pid);
+                    }
+                }
+            }
+        }
+    }
+
+    // Fallback tools
+    for (name, args) in [
+        ("lsof", vec!["-i", &format!(":{}", port)]),
+        ("netstat", vec!["-ltnp"]),
+    ] {
+        if let Ok(out) = std::process::Command::new(name).args(args).output() {
+            let s = String::from_utf8_lossy(&out.stdout);
+            if !s.trim().is_empty() {
+                log::info!("\n{} output:\n{}", name.to_uppercase(), s);
+            }
+        }
+    }
+}
+
+fn show_process_details(pid: u32) {
+    let pid_str = pid.to_string();
+    let env = format!("/proc/{}/environ", pid);
+    let commands = vec![
+        // Full command line
+        vec!["ps", "-p", &pid_str, "-o", "pid,ppid,user,comm,args"],
+        // Process tree
+        vec!["pstree", "-p", "-a", &pid_str],
+        // Environment (useful in CI)
+        vec!["cat", &env],
+    ];
+
+    for cmd in commands {
+        log::info!("\nRunning: {} {}", cmd[0], cmd[1..].join(" "));
+        match std::process::Command::new(cmd[0]).args(&cmd[1..]).output() {
+            Ok(output) => {
+                let stdout = String::from_utf8_lossy(&output.stdout);
+                let stderr = String::from_utf8_lossy(&output.stderr);
+                if !stdout.trim().is_empty() {
+                    log::info!("{}", stdout);
+                }
+                if !stderr.trim().is_empty() {
+                    log::warn!("{}", stderr);
+                }
+            }
+            Err(e) => log::warn!("Failed to run {:?}: {}", cmd, e),
+        }
+    }
 }
 
 async fn handle_notification(plugin: Plugin<PluginState>, value: serde_json::Value) -> Result<()> {
