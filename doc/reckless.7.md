@@ -1,5 +1,5 @@
-reckless -- Issue a command to the reckless plugin manager utility
-==================================================================
+reckless -- Reckless, a plugin manager
+======================================
 
 SYNOPSIS
 --------
@@ -9,27 +9,22 @@ SYNOPSIS
 DESCRIPTION
 -----------
 
-The **reckless** RPC starts a reckless process with the *command* and *target* provided.  Node configuration, network, and lightning direrctory are automatically passed to the reckless utility.
+The **reckless** RPC lets you manage plugins. It has multiple commands available, best described in the **help** command.
 
-- **command** (string) (one of "install", "uninstall", "search", "enable", "disable", "source", "--version"): Determines which command to pass to reckless
+- **command** (string) (one of "install", "update", "uninstall", "listavailable", "listinstalled", "enable", "disable", "source", "tip", "help"): Determines which command to pass to reckless
    - *command* **install** takes a *plugin\_name* to search for and install a named plugin.
    - *command* **uninstall** takes a *plugin\_name* and attempts to uninstall a plugin of the same name.
-   - *command* **search** takes a *plugin\_name* to search for a named plugin.
+   - *command* **help** takes a *command* to display help for.
  ...
-- **target/subcommand** (one of, optional): Target of a reckless command or a subcommand.:
-  - (string)
-  - (array)
-- **target** (one of, optional): *name* of a plugin to install/uninstall/search/enable/disable or source to add/remove.:
-  - (string)
-  - (array)
+- **target/subcommand** (string, optional): Target of a reckless command or a subcommand.
+- **target** (string, optional): *name* of a plugin to install/uninstall/listavailable/enable/disable or source to add/remove.
 
 RETURN VALUE
 ------------
 
 On success, an object is returned, containing:
 
-- **result** (array of strings): Output of the requested reckless command.:
-  - (string, optional)
+- **result** (array of objects): Output of the requested reckless command.:
 - **log** (array of strings): Verbose log entries of the requested reckless command.:
   - (string, optional)
 

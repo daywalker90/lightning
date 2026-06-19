@@ -2,9 +2,9 @@
   "$schema": "../rpc-schema-draft.json",
   "type": "object",
   "rpc": "reckless",
-  "title": "Issue a command to the reckless plugin manager utility",
+  "title": "Reckless, a plugin manager",
   "description": [
-    "The **reckless** RPC starts a reckless process with the *command* and *target* provided.  Node configuration, network, and lightning direrctory are automatically passed to the reckless utility."
+    "The **reckless** RPC lets you manage plugins. It has multiple commands available, best described in the **help** command."
   ],
   "request": {
     "required": [
@@ -16,45 +16,34 @@
         "type": "string",
         "enum": [
           "install",
+          "update",
           "uninstall",
-          "search",
+          "listavailable",
+          "listinstalled",
           "enable",
           "disable",
           "source",
-          "--version"
+          "tip",
+          "help"
         ],
         "description": [
           "Determines which command to pass to reckless",
           "  - *command* **install** takes a *plugin_name* to search for and install a named plugin.",
           "  - *command* **uninstall** takes a *plugin_name* and attempts to uninstall a plugin of the same name.",
-          "  - *command* **search** takes a *plugin_name* to search for a named plugin.",
+          "  - *command* **help** takes a *command* to display help for.",
           "..."
         ]
       },
       "target/subcommand": {
-        "oneOf": [
-          {
-            "type": "string"
-          },
-          {
-            "type": "array"
-          }
-        ],
+        "type": "string",
         "description": [
           "Target of a reckless command or a subcommand."
         ]
       },
       "target": {
-        "oneOf": [
-          {
-            "type": "string"
-          },
-          {
-            "type": "array"
-          }
-        ],
+        "type": "string",
         "description": [
-          "*name* of a plugin to install/uninstall/search/enable/disable or source to add/remove."
+          "*name* of a plugin to install/uninstall/listavailable/enable/disable or source to add/remove."
         ]
       }
     }
@@ -69,7 +58,7 @@
       "result": {
         "type": "array",
         "items": {
-          "type": "string"
+          "type": "object"
         },
         "description": [
           "Output of the requested reckless command."
