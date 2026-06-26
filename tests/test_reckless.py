@@ -241,7 +241,6 @@ def test_install(node_factory):
         "enabled": True,
         "plugin_name": "testplugpass",
     }
-    print(r)
     assert any("dependencies installed successfully" in line for line in r["log"])
     assert any("plugin installed:" in line for line in r["log"])
     assert any("testplugpass enabled" in line for line in r["log"])
