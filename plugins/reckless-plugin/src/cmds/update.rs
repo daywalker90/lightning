@@ -2,22 +2,25 @@ use anyhow::anyhow;
 use cln_plugin::Plugin;
 use cln_rpc::notifications::LogLevel;
 use serde_json::json;
-use tokio::{fs, process::Command};
+use tokio::process::Command;
 
 use crate::{
-    cmds::list::list_installed,
+    cmds::{
+        enable::{disable_plugin, enable_plugin},
+        list::list_installed,
+    },
     installers::{
         install_custom_plugin, install_go_plugin, install_nodejs_plugin, install_poetry_plugin,
         install_python_plugin, install_rust_plugin, install_uv_legacy_plugin, install_uv_plugin,
         install_uv_shebang_plugin,
     },
     structs::{
-        Installer, PluginState, RecklessLogger, RecklessPlugin, RecklessTopic, RpcResponse,
-        RpcResult, UpdateArgs,
+        InstallResponse, Installer, PluginState, RecklessLogger, RecklessPlugin, RecklessTopic,
+        RpcResponse, RpcResult, UpdateArgs,
     },
     util::{
-        copy_dir_all, detect_installer, parse_target, read_metadata, run_logged_command,
-        search_sources, write_metadata,
+        copy_dir_all, parse_target, read_metadata, run_logged_command, search_sources,
+        write_metadata,
     },
 };
 
@@ -31,23 +34,13 @@ pub async fn handle_update(
 
     let mut ignore_pinned = false;
 
-    let targets = if let Some(target) = install_args.target {
-        ignore_pinned = true;
-        vec![target]
-    } else {
-        let listinstalled = match list_installed(plugin.clone()).await {
-            Ok(o) => o,
-            Err(e) => {
-                logger.log(&e.to_string(), LogLevel::BROKEN).await?;
-                return Err(e);
-            }
-        };
-        let mut targets = Vec::new();
-        for (name, _) in listinstalled {
-            targets.push(name);
-        }
-        targets
-    };
+    let targets = gather_update_targets(
+        plugin.clone(),
+        &install_args,
+        &mut ignore_pinned,
+        &mut logger,
+    )
+    .await?;
 
     for target in targets {
         let (plugin_name, git_ref) = match parse_target(&target) {
@@ -65,33 +58,96 @@ pub async fn handle_update(
                     return Err(e);
                 }
             };
-        let Some(rl_plugin) = search_results.get_mut(&plugin_name) else {
+        let Some(new_rl_plugin) = search_results.get_mut(&plugin_name) else {
             let line = format!("{plugin_name} not found in any known sources");
             logger.log(&line, LogLevel::UNUSUAL).await?;
             return Err(anyhow!(line));
         };
 
-        if !rl_plugin.path().exists() {
+        let plugin_dir = plugin.state().reckless_dir.join(&plugin_name);
+        if !plugin_dir.exists() {
             let line = format!("{plugin_name} is not installed");
             logger.log(&line, LogLevel::UNUSUAL).await?;
             return Err(anyhow!(line));
         }
+        let old_rl_plugin = read_metadata(&plugin_dir).await?;
+
+        if old_rl_plugin.metadata().requested_commit().is_some() && !ignore_pinned {
+            let line = format!(
+                "skipping update for pinned plugin: {}",
+                old_rl_plugin.name()
+            );
+            logger.log(&line, LogLevel::INFO).await?;
+            continue;
+        }
+
+        if !new_rl_plugin.origin_plugin_path().exists() {
+            let line = format!(
+                "repo does not exist: {}",
+                new_rl_plugin.origin_repo_path().display()
+            );
+            logger.log(&line, LogLevel::UNUSUAL).await?;
+            continue;
+        }
+
+        if let Some(installable) = new_rl_plugin.manifest().installable {
+            if !installable {
+                let line = format!(
+                    "{} is not reckless-installable according to their manifest",
+                    new_rl_plugin.name()
+                );
+                logger.log(&line, LogLevel::UNUSUAL).await?;
+                continue;
+            }
+        }
+
+        let old_options = match disable_plugin(plugin.clone(), &old_rl_plugin, &mut logger).await {
+            Ok(o) => o,
+            Err(e) => {
+                let line = format!(
+                    "Disabling {} before update failed. \
+                    It might be in an inconsistent state: {e}",
+                    old_rl_plugin.name()
+                );
+                logger.log(&line, LogLevel::BROKEN).await?;
+                continue;
+            }
+        };
 
         let update_result = update(
-            &plugin_name,
-            git_ref,
-            rl_plugin,
-            ignore_pinned,
+            git_ref.clone(),
+            old_rl_plugin,
+            new_rl_plugin,
             &mut logger,
             install_args.developer,
         )
         .await;
+
+        let mut install_resp = InstallResponse {
+            plugin_name: plugin_name.clone(),
+            enabled: false,
+            installed_commit: new_rl_plugin
+                .metadata()
+                .installed_commit()
+                .map(std::borrow::ToOwned::to_owned),
+        };
+
         match update_result {
             Ok(()) => {
-                result.push(target)?;
+                match enable_plugin(plugin.clone(), new_rl_plugin, old_options, &mut logger).await {
+                    Ok(()) => {
+                        install_resp.enabled = true;
+                    }
+                    Err(e) => {
+                        let line =
+                            format!("Enabling {} after update failed: {e}", new_rl_plugin.name());
+                        logger.log(&line, LogLevel::BROKEN).await?;
+                    }
+                }
+                result.push(install_resp)?;
             }
             Err(e) => {
-                logger.log(&e.to_string(), LogLevel::UNUSUAL).await?;
+                logger.log(&e.to_string(), LogLevel::BROKEN).await?;
             }
         }
     }
@@ -101,56 +157,67 @@ pub async fn handle_update(
     Ok(json!(response))
 }
 
+async fn gather_update_targets(
+    plugin: Plugin<PluginState>,
+    install_args: &UpdateArgs,
+    ignore_pinned: &mut bool,
+    logger: &mut RecklessLogger<'_>,
+) -> Result<Vec<String>, anyhow::Error> {
+    if let Some(target) = &install_args.target {
+        *ignore_pinned = true;
+        Ok(vec![target.clone()])
+    } else {
+        let listinstalled = match list_installed(plugin).await {
+            Ok(o) => o,
+            Err(e) => {
+                logger.log(&e.to_string(), LogLevel::BROKEN).await?;
+                return Err(e);
+            }
+        };
+        let mut targets = Vec::new();
+        for (name, _) in listinstalled {
+            targets.push(name);
+        }
+        Ok(targets)
+    }
+}
+
 async fn update(
-    plugin_name: &str,
     git_ref: Option<String>,
-    rl_plugin: &mut RecklessPlugin,
-    ignore_pinned: bool,
+    old_rl_plugin: RecklessPlugin,
+    new_rl_plugin: &mut RecklessPlugin,
     logger: &mut RecklessLogger<'_>,
     developer: bool,
 ) -> Result<(), anyhow::Error> {
-    let metadata = read_metadata(rl_plugin.path()).await?;
-
-    if metadata.requested_commit.is_some() && !ignore_pinned {
-        return Err(anyhow!("skipping update for pinned plugin: {plugin_name}"));
-    }
-
-    if !rl_plugin.origin_plugin_path().exists() {
-        return Err(anyhow!(
-            "repo does not exist: {}",
-            rl_plugin.origin_repo_path().display()
-        ));
-    }
-
-    if !rl_plugin.is_local_path() {
+    if !new_rl_plugin.is_local_path() {
         let mut command = Command::new("git");
         command
             .args(["pull", "--ff-only"])
-            .current_dir(rl_plugin.origin_repo_path());
+            .current_dir(new_rl_plugin.origin_repo_path());
         run_logged_command(command, logger).await?;
 
         let mut command = Command::new("git");
         command
             .args(["submodule", "sync", "--recursive"])
-            .current_dir(rl_plugin.origin_repo_path());
+            .current_dir(new_rl_plugin.origin_repo_path());
         run_logged_command(command, logger).await?;
 
         let mut command = Command::new("git");
         command
             .args(["submodule", "update", "--init", "--recursive"])
-            .current_dir(rl_plugin.origin_repo_path());
+            .current_dir(new_rl_plugin.origin_repo_path());
         run_logged_command(command, logger).await?;
 
         let mut command = Command::new("git");
         command
             .args(["checkout", git_ref.as_ref().unwrap_or(&"HEAD".to_owned())])
-            .current_dir(rl_plugin.origin_plugin_path());
+            .current_dir(new_rl_plugin.origin_plugin_path());
         run_logged_command(command, logger).await?;
 
         let mut command = Command::new("git");
         command
             .args(["rev-parse", "HEAD"])
-            .current_dir(rl_plugin.origin_plugin_path());
+            .current_dir(new_rl_plugin.origin_plugin_path());
         let commit_hash = run_logged_command(command, logger).await?;
 
         let ref_to_be_installed = if let Some(gr) = &git_ref {
@@ -159,52 +226,56 @@ async fn update(
             commit_hash
         };
 
-        rl_plugin.set_installed_commit(ref_to_be_installed.clone());
-
-        if metadata.installed_commit == ref_to_be_installed {
-            let line =
-                format!("{plugin_name} is already on the latest version: {ref_to_be_installed}");
+        if let Some(installed_commit) = old_rl_plugin.metadata().installed_commit() {
+            if installed_commit == ref_to_be_installed {
+                let line = format!(
+                    "{} is already on the latest version: {ref_to_be_installed}",
+                    old_rl_plugin.name()
+                );
+                logger.log(&line, LogLevel::INFO).await?;
+                return Ok(());
+            }
+        } else {
+            let line = format!(
+                "{} should have a git ref for the current install",
+                old_rl_plugin.name()
+            );
             logger.log(&line, LogLevel::INFO).await?;
-            return Ok(());
         }
+        new_rl_plugin
+            .metadata_mut()
+            .set_installed_commit(ref_to_be_installed.clone());
 
         let line = format!(
-            "updating {plugin_name} from {} to {ref_to_be_installed}",
-            metadata.installed_commit
+            "updating {} from {} to {ref_to_be_installed}",
+            old_rl_plugin.name(),
+            old_rl_plugin.metadata().installed_commit().unwrap()
         );
         logger.log(&line, LogLevel::INFO).await?;
 
-        fs::create_dir_all(rl_plugin.source_path()).await?;
-
         copy_dir_all(
-            rl_plugin.origin_plugin_path(),
-            rl_plugin.source_path(),
+            new_rl_plugin.origin_plugin_path(),
+            new_rl_plugin.source_path(),
             logger,
         )
         .await?;
     }
 
-    let installer = detect_installer(rl_plugin.source_path()).await?;
-
-    let entrypoint = match installer {
-        Installer::PythonUv => install_uv_plugin(plugin_name, rl_plugin, logger).await?,
-        Installer::PythonUvShebang => {
-            install_uv_shebang_plugin(plugin_name, rl_plugin, logger).await?
-        }
-        Installer::PythonUvLegacy => {
-            install_uv_legacy_plugin(plugin_name, rl_plugin, logger).await?
-        }
-        Installer::PoetryVenv => install_poetry_plugin(plugin_name, rl_plugin, logger).await?,
+    let entrypoint = match new_rl_plugin.installer() {
+        Installer::PythonUv => install_uv_plugin(new_rl_plugin, logger).await?,
+        Installer::PythonUvShebang => install_uv_shebang_plugin(new_rl_plugin, logger).await?,
+        Installer::PythonUvLegacy => install_uv_legacy_plugin(new_rl_plugin, logger).await?,
+        Installer::PoetryVenv => install_poetry_plugin(new_rl_plugin, logger).await?,
         Installer::PyprojectViaPip | Installer::Python => {
-            install_python_plugin(plugin_name, rl_plugin, logger).await?
+            install_python_plugin(new_rl_plugin, logger).await?
         }
-        Installer::Nodejs => install_nodejs_plugin(plugin_name, rl_plugin, logger).await?,
-        Installer::Rust => install_rust_plugin(plugin_name, rl_plugin, logger, developer).await?,
-        Installer::Go => install_go_plugin(plugin_name, rl_plugin, logger).await?,
-        Installer::Custom => install_custom_plugin(plugin_name, rl_plugin, logger).await?,
+        Installer::Nodejs => install_nodejs_plugin(new_rl_plugin, logger).await?,
+        Installer::Rust => install_rust_plugin(new_rl_plugin, logger, developer).await?,
+        Installer::Go => install_go_plugin(new_rl_plugin, logger).await?,
+        Installer::Custom => install_custom_plugin(new_rl_plugin, logger).await?,
     };
 
-    write_metadata(rl_plugin).await?;
+    write_metadata(new_rl_plugin).await?;
 
     let line = format!("plugin updated: {}", entrypoint.display());
     logger.log(&line, LogLevel::INFO).await?;

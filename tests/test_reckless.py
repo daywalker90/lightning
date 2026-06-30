@@ -233,6 +233,7 @@ def test_list_partial_match(node_factory):
     assert "INFO: Search exhausted all sources" in r["log"]
 
 
+@unittest.skipIf(VALGRIND, "virtual environment triggers memleak detection")
 def test_install(node_factory):
     """test search, git clone, and installation to folder."""
     n = node_factory.get_node(options={})
@@ -255,6 +256,7 @@ def test_install(node_factory):
     n.daemon.wait_for_log("testplugpass is already installed")
 
 
+@unittest.skipIf(VALGRIND, "virtual environment triggers memleak detection")
 def test_install_cleanup(node_factory):
     """test failed start which should give a chance to enable with options and"""
     """a failed installation which should cleanup the plugin folder"""
@@ -371,14 +373,10 @@ def test_tag_install(node_factory):
         "enabled": True,
         "plugin_name": "testplugpass",
     }
-    metadata = node.lightning_dir / "reckless/testplugpass/.metadata"
-    with open(metadata, "r") as md:
-        header = ""
-        for line in md.readlines():
-            line = line.strip()
-            if header == "requested commit":
-                assert line == "None"
-            header = line
+    metadata_file = node.lightning_dir / "reckless/testplugpass/.metadata.json"
+    with open(metadata_file, "r") as md:
+        metadata = json.load(md)
+    assert "requested_commit" not in metadata["metadata"]
     # should install v2 (latest) without specifying
     version = node.rpc.gettestplugversion()
     assert version == "v2"
@@ -396,15 +394,13 @@ def test_tag_install(node_factory):
     assert version == "v1"
     installed_path = Path(node.lightning_dir) / "reckless/testplugpass"
     assert installed_path.is_dir()
-    with open(metadata, "r") as md:
-        header = ""
-        for line in md.readlines():
-            line = line.strip()
-            if header == "requested commit":
-                assert line == "v1"
-            header = line
+    with open(metadata_file, "r") as md:
+        metadata = json.load(md)
+    assert metadata["metadata"]["requested_commit"] == "v1"
+    assert metadata["metadata"]["installed_commit"] == "v1"
 
 
+@unittest.skipIf(VALGRIND, "virtual environment triggers memleak detection")
 def test_install_plugin_requiring_opts(node_factory):
     """A plugin that exits non-zero when run standalone (e.g. because a
     required option is not yet configured) should still install successfully."""
@@ -466,6 +462,7 @@ def test_reckless_uv_install(node_factory):
     # r.check_stderr() TODO: check logs
 
 
+@unittest.skipIf(VALGRIND, "virtual environment triggers memleak detection")
 def test_reckless_manifest(node_factory):
     node, l2 = node_factory.line_graph(2, wait_for_announce=True)
 

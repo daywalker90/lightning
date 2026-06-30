@@ -9,33 +9,33 @@ use tokio::{fs, process::Command};
 
 use crate::{
     structs::{RecklessLogger, RecklessPlugin},
-    util::{create_symlink, find_entryfile, read_reckless_manifest, run_logged_command},
+    util::{create_symlink, run_logged_command},
 };
 
 pub async fn install_custom_plugin(
-    plugin_name: &str,
     rl_plugin: &RecklessPlugin,
     logger: &mut RecklessLogger<'_>,
 ) -> Result<PathBuf, anyhow::Error> {
     let line = "using installer custom";
     logger.log(line, LogLevel::INFO).await?;
 
-    let Some(rl_manifest) = read_reckless_manifest(rl_plugin.source_path()).await? else {
-        return Err(anyhow!("custom installer requires a manifest"));
-    };
-
     let entrypoint = Path::new(
-        rl_manifest
+        rl_plugin
+            .manifest()
             .entrypoint
             .as_ref()
             .ok_or_else(|| anyhow!("custom installer requires entrypoint in manifest"))?,
     );
-    let install_cmds = rl_manifest
+    let install_cmds = rl_plugin
+        .manifest()
         .install_cmd
         .as_ref()
         .ok_or_else(|| anyhow!("custom installer requires install_cmd in manifest"))?;
 
-    let line = format!("running install commands for {plugin_name}, this might take a while...");
+    let line = format!(
+        "running install commands for {}, this might take a while...",
+        rl_plugin.name()
+    );
     logger.log(&line, LogLevel::INFO).await?;
 
     for install_cmd in install_cmds {
@@ -61,7 +61,7 @@ pub async fn install_custom_plugin(
 
     set_executable(&entrypoint_path).await?;
 
-    let symlink_path = rl_plugin.path().join(plugin_name);
+    let symlink_path = rl_plugin.get_entrypath()?;
 
     create_symlink(&entrypoint_path, &symlink_path)?;
 
@@ -69,7 +69,6 @@ pub async fn install_custom_plugin(
 }
 
 pub async fn install_nodejs_plugin(
-    plugin_name: &str,
     rl_plugin: &RecklessPlugin,
     logger: &mut RecklessLogger<'_>,
 ) -> Result<PathBuf, anyhow::Error> {
@@ -88,12 +87,14 @@ pub async fn install_nodejs_plugin(
     let line = "dependencies installed successfully";
     logger.log(line, LogLevel::INFO).await?;
 
-    let plugin_entry = find_entryfile(rl_plugin.source_path(), plugin_name).await?;
+    let Some(plugin_entry) = &rl_plugin.manifest().entrypoint else {
+        return Err(anyhow!("plugin entrypoint not found"));
+    };
 
-    let plugin_path = rl_plugin.source_path().join(&plugin_entry);
+    let plugin_path = rl_plugin.source_path().join(plugin_entry);
     set_executable(&plugin_path).await?;
 
-    let symlink_path = rl_plugin.path().join(&plugin_entry);
+    let symlink_path = rl_plugin.get_entrypath()?;
 
     create_symlink(&plugin_path, &symlink_path)?;
 
@@ -101,7 +102,6 @@ pub async fn install_nodejs_plugin(
 }
 
 pub async fn install_rust_plugin(
-    plugin_name: &str,
     rl_plugin: &RecklessPlugin,
     logger: &mut RecklessLogger<'_>,
     developer: bool,
@@ -175,7 +175,7 @@ pub async fn install_rust_plugin(
             ));
         }
 
-        let destination = rl_plugin.path().join(plugin_name);
+        let destination = rl_plugin.get_entrypath()?;
 
         let line = format!("moving {} to {}", binary.display(), destination.display());
         logger.log(&line, LogLevel::DEBUG).await?;
@@ -196,7 +196,6 @@ pub async fn install_rust_plugin(
 }
 
 pub async fn install_go_plugin(
-    plugin_name: &str,
     rl_plugin: &RecklessPlugin,
     logger: &mut RecklessLogger<'_>,
 ) -> Result<PathBuf, anyhow::Error> {
@@ -213,7 +212,7 @@ pub async fn install_go_plugin(
         return Err(anyhow!("No main package found, can't install"));
     }
 
-    let destination = rl_plugin.path().join(plugin_name);
+    let destination = rl_plugin.get_entrypath()?;
 
     let line = "compiling with `go`, this might take a moment...";
     logger.log(line, LogLevel::INFO).await?;
@@ -314,7 +313,6 @@ async fn find_go_main_packages(root: PathBuf) -> Result<Vec<PathBuf>, anyhow::Er
 }
 
 pub async fn install_poetry_plugin(
-    plugin_name: &str,
     rl_plugin: &RecklessPlugin,
     logger: &mut RecklessLogger<'_>,
 ) -> Result<PathBuf, anyhow::Error> {
@@ -355,14 +353,10 @@ pub async fn install_poetry_plugin(
     let line = "dependencies installed successfully";
     logger.log(line, LogLevel::INFO).await?;
 
-    let plugin_entry = find_entryfile(rl_plugin.source_path(), plugin_name).await?;
+    let wrapper = rl_plugin.manifest().entry_filename()?;
+    let wrapper_path = rl_plugin.get_entrypath()?;
 
-    let entry_name = plugin_entry.trim_end_matches(".py");
-
-    let wrapper = format!("{plugin_name}.py");
-    let wrapper_path = rl_plugin.path().join(wrapper);
-
-    let wrapper = create_wrapper(rl_plugin, entry_name, &venv_dir).await?;
+    let wrapper = create_wrapper(rl_plugin, wrapper, &venv_dir).await?;
     fs::write(&wrapper_path, wrapper).await?;
 
     set_executable(&wrapper_path).await?;
@@ -371,7 +365,6 @@ pub async fn install_poetry_plugin(
 }
 
 pub async fn install_uv_plugin(
-    plugin_name: &str,
     rl_plugin: &RecklessPlugin,
     logger: &mut RecklessLogger<'_>,
 ) -> Result<PathBuf, anyhow::Error> {
@@ -385,15 +378,11 @@ pub async fn install_uv_plugin(
     let line = "dependencies installed successfully";
     logger.log(line, LogLevel::INFO).await?;
 
-    let plugin_entry = find_entryfile(rl_plugin.source_path(), plugin_name).await?;
-
-    let entry_name = plugin_entry.trim_end_matches(".py");
-
-    let wrapper = format!("{plugin_name}.py");
-    let wrapper_path = rl_plugin.path().join(wrapper);
+    let wrapper = rl_plugin.manifest().entry_filename()?;
+    let wrapper_path = rl_plugin.get_entrypath()?;
     let venv_dir = rl_plugin.source_path().join(".venv");
 
-    let wrapper = create_wrapper(rl_plugin, entry_name, &venv_dir).await?;
+    let wrapper = create_wrapper(rl_plugin, wrapper, &venv_dir).await?;
     fs::write(&wrapper_path, wrapper).await?;
 
     set_executable(&wrapper_path).await?;
@@ -402,19 +391,18 @@ pub async fn install_uv_plugin(
 }
 
 pub async fn install_uv_shebang_plugin(
-    plugin_name: &str,
     rl_plugin: &RecklessPlugin,
     logger: &mut RecklessLogger<'_>,
 ) -> Result<PathBuf, anyhow::Error> {
     let line = "using installer pythonuvshebang";
     logger.log(line, LogLevel::INFO).await?;
 
-    let plugin_entry = format!("{plugin_name}.py");
+    let entryfile = rl_plugin.manifest().entry_filename()?;
 
-    let plugin_path = rl_plugin.source_path().join(&plugin_entry);
+    let plugin_path = rl_plugin.source_path().join(entryfile);
     set_executable(&plugin_path).await?;
 
-    let symlink_path = rl_plugin.path().join(&plugin_entry);
+    let symlink_path = rl_plugin.get_entrypath()?;
 
     create_symlink(&plugin_path, &symlink_path)?;
 
@@ -422,7 +410,6 @@ pub async fn install_uv_shebang_plugin(
 }
 
 pub async fn install_uv_legacy_plugin(
-    plugin_name: &str,
     rl_plugin: &RecklessPlugin,
     logger: &mut RecklessLogger<'_>,
 ) -> Result<PathBuf, anyhow::Error> {
@@ -453,15 +440,11 @@ pub async fn install_uv_legacy_plugin(
     let line = "dependencies installed successfully";
     logger.log(line, LogLevel::INFO).await?;
 
-    let plugin_entry = find_entryfile(rl_plugin.source_path(), plugin_name).await?;
-
-    let entry_name = plugin_entry.trim_end_matches(".py");
-
-    let wrapper = format!("{plugin_name}.py");
-    let wrapper_path = rl_plugin.path().join(wrapper);
+    let wrapper = rl_plugin.manifest().entry_filename()?;
+    let wrapper_path = rl_plugin.get_entrypath()?;
     let venv_dir = rl_plugin.source_path().join(".venv");
 
-    let wrapper = create_wrapper(rl_plugin, entry_name, &venv_dir).await?;
+    let wrapper = create_wrapper(rl_plugin, wrapper, &venv_dir).await?;
     fs::write(&wrapper_path, wrapper).await?;
 
     set_executable(&wrapper_path).await?;
@@ -470,7 +453,6 @@ pub async fn install_uv_legacy_plugin(
 }
 
 pub async fn install_python_plugin(
-    plugin_name: &str,
     rl_plugin: &RecklessPlugin,
     logger: &mut RecklessLogger<'_>,
 ) -> Result<PathBuf, anyhow::Error> {
@@ -505,14 +487,10 @@ pub async fn install_python_plugin(
     let line = "dependencies installed successfully";
     logger.log(line, LogLevel::INFO).await?;
 
-    let plugin_entry = find_entryfile(rl_plugin.source_path(), plugin_name).await?;
+    let wrapper = rl_plugin.manifest().entry_filename()?;
+    let wrapper_path = rl_plugin.get_entrypath()?;
 
-    let entry_name = plugin_entry.trim_end_matches(".py");
-
-    let wrapper = format!("{plugin_name}.py");
-    let wrapper_path = rl_plugin.path().join(wrapper);
-
-    let wrapper = create_wrapper(rl_plugin, entry_name, &venv_dir).await?;
+    let wrapper = create_wrapper(rl_plugin, wrapper, &venv_dir).await?;
     fs::write(&wrapper_path, wrapper).await?;
 
     set_executable(&wrapper_path).await?;
@@ -564,7 +542,7 @@ fn pip_bin(venv: &Path) -> PathBuf {
 
 async fn create_wrapper(
     rl_plugin: &RecklessPlugin,
-    plugin_filename: &str,
+    entryfile: &Path,
     venv: &Path,
 ) -> Result<String, anyhow::Error> {
     let source_str = rl_plugin
@@ -584,6 +562,12 @@ async fn create_wrapper(
         .to_str()
         .ok_or_else(|| anyhow!("path contains invalid utf-8"))?;
 
+    let module_name = entryfile
+        .file_stem()
+        .ok_or_else(|| anyhow!("entryfile has no filename"))?
+        .to_str()
+        .ok_or_else(|| anyhow!("entryfile has invalid utf-8 characters"))?;
+
     let wrapper = format!(
         r#"#!{python}
 import sys
@@ -595,7 +579,7 @@ if '{source_str}' not in sys.path:
 if '{path_str}' in sys.path:
     sys.path.remove('{path_str}')
 
-runpy.run_module("{plugin_filename}", {{}}, "__main__")
+runpy.run_module("{module_name}", {{}}, "__main__")
 "#
     );
     Ok(wrapper)

@@ -8,7 +8,7 @@ use tokio::fs;
 
 use crate::{
     structs::{Metadata, PluginState, RecklessLogger, RecklessTopic, RpcResponse, RpcResult},
-    util::{read_metadata, read_reckless_manifest, search_sources},
+    util::{read_metadata, search_sources},
 };
 
 pub async fn handle_list_available(
@@ -29,23 +29,20 @@ pub async fn handle_list_available(
 
     for (plugin_name, plugin) in reckless_plugins {
         let mut entry = Map::new();
-        let reckless_manifests = read_reckless_manifest(plugin.source_path()).await?;
-        entry.insert("name".to_owned(), json!(plugin_name));
         let Ok(Value::Object(plugin_json)) = serde_json::to_value(&plugin) else {
             let line = format!("failed to serialize plugin {plugin_name}");
             logger.log(&line, LogLevel::BROKEN).await?;
             return Err(anyhow!(line));
         };
-        entry.extend(plugin_json);
-
-        if let Some(manifest) = reckless_manifests {
-            let Ok(Value::Object(m)) = serde_json::to_value(&manifest) else {
-                let line = format!("failed to serialize manifest for {plugin_name}");
-                logger.log(&line, LogLevel::BROKEN).await?;
-                return Err(anyhow!(line));
-            };
-            entry.extend(m);
-        }
+        let la_fields: Vec<(String, Value)> = ["plugin_name", "installer", "manifest", "origin"]
+            .iter()
+            .filter_map(|key| {
+                plugin_json
+                    .get(*key)
+                    .map(|v| ((*key).to_string(), v.clone()))
+            })
+            .collect();
+        entry.extend(la_fields);
         result.push(entry)?;
     }
 
@@ -98,8 +95,11 @@ pub async fn list_installed(
         if file_type.is_file() {
             continue;
         }
-        if let Ok(metadata) = read_metadata(&entry.path()).await {
-            result.insert(entry.file_name().to_string_lossy().to_string(), metadata);
+        if let Ok(rl_plugin) = read_metadata(&entry.path()).await {
+            result.insert(
+                entry.file_name().to_string_lossy().to_string(),
+                rl_plugin.metadata().clone(),
+            );
         }
     }
 

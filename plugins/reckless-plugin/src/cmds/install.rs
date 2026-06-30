@@ -18,7 +18,7 @@ use crate::{
         RecklessTopic, RpcResponse, RpcResult, TargetResponse,
     },
     util::{
-        copy_dir_all, detect_installer, parse_install_target, parse_target, run_logged_command,
+        copy_dir_all, parse_install_target, parse_target, read_metadata, run_logged_command,
         search_sources, write_metadata,
     },
 };
@@ -48,11 +48,6 @@ pub async fn handle_install(
         }
     };
 
-    let mut install_resp = InstallResponse {
-        plugin_name: plugin_name.clone(),
-        enabled: false,
-    };
-
     if search_results.is_empty() {
         search_results =
             search_sources(plugin.clone(), Some(plugin_name.clone()), &mut logger).await?;
@@ -62,7 +57,6 @@ pub async fn handle_install(
         logger.log(&line, LogLevel::UNUSUAL).await?;
         return Err(anyhow!(line));
     };
-    rl_plugin.set_requested_commit(git_ref);
 
     if rl_plugin.path().exists() {
         let line = format!("{plugin_name} is already installed");
@@ -70,8 +64,28 @@ pub async fn handle_install(
         return Err(anyhow!(line));
     }
 
-    let install_result =
-        install(&plugin_name, rl_plugin, &mut logger, install_args.developer).await;
+    if let Some(installable) = rl_plugin.manifest().installable {
+        if !installable {
+            let line =
+                format!("{plugin_name} is not reckless-installable according to their manifest");
+            logger.log(&line, LogLevel::UNUSUAL).await?;
+            return Err(anyhow!(line));
+        }
+    }
+
+    if rl_plugin.is_local_path() && git_ref.is_some() {
+        let line = "git refs are not supported for local paths";
+        logger.log(line, LogLevel::UNUSUAL).await?;
+        return Err(anyhow!(line));
+    }
+
+    let install_result = install(
+        rl_plugin,
+        git_ref.clone(),
+        &mut logger,
+        install_args.developer,
+    )
+    .await;
 
     match install_result {
         Ok(entrypoint) => {
@@ -93,15 +107,16 @@ pub async fn handle_install(
         }
     }
 
-    match enable_plugin(
-        plugin.clone(),
-        &plugin_name,
-        rl_plugin,
-        install_args.options,
-        &mut logger,
-    )
-    .await
-    {
+    let mut install_resp = InstallResponse {
+        plugin_name: plugin_name.clone(),
+        enabled: false,
+        installed_commit: rl_plugin
+            .metadata()
+            .installed_commit()
+            .map(std::borrow::ToOwned::to_owned),
+    };
+
+    match enable_plugin(plugin.clone(), rl_plugin, install_args.options, &mut logger).await {
         Ok(()) => install_resp.enabled = true,
         Err(e) => {
             logger.log(&e.to_string(), LogLevel::UNUSUAL).await?;
@@ -119,8 +134,8 @@ pub async fn handle_install(
 }
 
 async fn install(
-    plugin_name: &str,
     rl_plugin: &mut RecklessPlugin,
+    git_ref: Option<String>,
     logger: &mut RecklessLogger<'_>,
     developer: bool,
 ) -> Result<PathBuf, anyhow::Error> {
@@ -154,7 +169,7 @@ async fn install(
 
         let mut command = Command::new("git");
         command
-            .args(["checkout", rl_plugin.requested_commit().unwrap_or("HEAD")])
+            .args(["checkout", git_ref.as_deref().unwrap_or("HEAD")])
             .current_dir(rl_plugin.origin_plugin_path());
         run_logged_command(command, logger).await?;
 
@@ -167,40 +182,38 @@ async fn install(
         .await?;
     }
 
-    let installer = detect_installer(rl_plugin.source_path()).await?;
-
-    let entrypoint = match installer {
-        Installer::PythonUv => install_uv_plugin(plugin_name, rl_plugin, logger).await?,
-        Installer::PythonUvShebang => {
-            install_uv_shebang_plugin(plugin_name, rl_plugin, logger).await?
-        }
-        Installer::PythonUvLegacy => {
-            install_uv_legacy_plugin(plugin_name, rl_plugin, logger).await?
-        }
-        Installer::PoetryVenv => install_poetry_plugin(plugin_name, rl_plugin, logger).await?,
+    let entrypoint = match rl_plugin.installer() {
+        Installer::PythonUv => install_uv_plugin(rl_plugin, logger).await?,
+        Installer::PythonUvShebang => install_uv_shebang_plugin(rl_plugin, logger).await?,
+        Installer::PythonUvLegacy => install_uv_legacy_plugin(rl_plugin, logger).await?,
+        Installer::PoetryVenv => install_poetry_plugin(rl_plugin, logger).await?,
         Installer::PyprojectViaPip | Installer::Python => {
-            install_python_plugin(plugin_name, rl_plugin, logger).await?
+            install_python_plugin(rl_plugin, logger).await?
         }
-        Installer::Nodejs => install_nodejs_plugin(plugin_name, rl_plugin, logger).await?,
-        Installer::Rust => install_rust_plugin(plugin_name, rl_plugin, logger, developer).await?,
-        Installer::Go => install_go_plugin(plugin_name, rl_plugin, logger).await?,
-        Installer::Custom => install_custom_plugin(plugin_name, rl_plugin, logger).await?,
+        Installer::Nodejs => install_nodejs_plugin(rl_plugin, logger).await?,
+        Installer::Rust => install_rust_plugin(rl_plugin, logger, developer).await?,
+        Installer::Go => install_go_plugin(rl_plugin, logger).await?,
+        Installer::Custom => install_custom_plugin(rl_plugin, logger).await?,
     };
 
-    if !rl_plugin.is_local_path() {
+    if rl_plugin.is_local_path() {
+        rl_plugin.metadata_mut().new_install(None, None);
+    } else {
         let mut command = Command::new("git");
         command
             .args(["rev-parse", "HEAD"])
             .current_dir(rl_plugin.origin_plugin_path());
         let commit_hash = run_logged_command(command, logger).await?;
 
-        let installed_ref = if let Some(gr) = rl_plugin.requested_commit() {
-            gr.to_owned()
+        let installed_ref = if let Some(gr) = &git_ref {
+            gr.clone()
         } else {
             commit_hash
         };
 
-        rl_plugin.set_installed_commit(installed_ref);
+        rl_plugin
+            .metadata_mut()
+            .new_install(Some(installed_ref), git_ref);
     }
 
     write_metadata(rl_plugin).await?;
@@ -251,17 +264,31 @@ async fn uninstall(
     plugin_name: String,
     logger: &mut RecklessLogger<'_>,
 ) -> Result<(), anyhow::Error> {
-    let install_path = plugin.state().reckless_dir.join(&plugin_name);
-    if !install_path.exists() {
-        return Err(anyhow!("plugin is not installed"));
-    }
-
-    if let Err(e) = disable_plugin(plugin.clone(), &plugin_name, logger).await {
-        let line = format!("{plugin_name} NOT disabled: {e}, remove plugin from config manually!");
+    let plugin_dir = plugin.state().reckless_dir.join(&plugin_name);
+    if !plugin_dir.exists() {
+        let line = format!("{plugin_name} is not installed");
         logger.log(&line, LogLevel::UNUSUAL).await?;
+        return Err(anyhow!(line));
     }
 
-    match fs::remove_dir_all(&install_path).await {
+    match read_metadata(&plugin_dir).await {
+        Ok(rl_plugin) => {
+            if let Err(e) = disable_plugin(plugin.clone(), &rl_plugin, logger).await {
+                let line =
+                    format!("{plugin_name} NOT disabled: {e}, remove plugin from config manually!");
+                logger.log(&line, LogLevel::UNUSUAL).await?;
+            }
+        }
+        Err(e) => {
+            let line = format!(
+                "could not read metadata for {plugin_name}: {e}, you must stop and remove it \
+                from the configs yourself"
+            );
+            logger.log(&line, LogLevel::UNUSUAL).await?;
+        }
+    }
+
+    match fs::remove_dir_all(&plugin_dir).await {
         Ok(()) => {
             let line = format!("{plugin_name} uninstalled");
             logger.log(&line, LogLevel::INFO).await?;

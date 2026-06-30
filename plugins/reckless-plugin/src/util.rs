@@ -3,11 +3,10 @@ use std::{
     path::{Path, PathBuf},
     process::Stdio,
     str::FromStr,
-    time::{Duration, SystemTime, UNIX_EPOCH},
+    time::Duration,
 };
 
 use anyhow::anyhow;
-use chrono::Utc;
 use cln_plugin::{Plugin, options};
 use cln_rpc::{
     codec::MultiLineCodec,
@@ -28,8 +27,8 @@ use url::Url;
 use which::which;
 
 use crate::structs::{
-    GetManifestResponse, Installer, Metadata, PluginState, RecklessLogger, RecklessManifest,
-    RecklessPlugin,
+    GetManifestResponse, Installer, PluginOrigin, PluginState, RecklessLogger, RecklessManifest,
+    RecklessPlugin, parse_key_val,
 };
 
 const DEFAULT_REPO: &str = "https://github.com/lightningd/plugins";
@@ -353,7 +352,6 @@ pub async fn find_plugin_locs(
     origin: String,
     repo_dir: PathBuf,
     max_depth: usize,
-    is_local_path: bool,
     logger: &mut RecklessLogger<'_>,
 ) -> Result<HashMap<String, RecklessPlugin>, anyhow::Error> {
     let line = format!("trying to find plugins in: `{}`", repo_dir.display());
@@ -386,17 +384,22 @@ pub async fn find_plugin_locs(
             continue;
         };
 
-        match detect_installer(&path).await {
-            Ok(_installer) => {
+        let rl_manifest = read_reckless_manifest(&path).await?;
+        let mut rl_manifest = rl_manifest.unwrap_or_default();
+
+        match detect_installer(&path, &mut rl_manifest).await {
+            Ok(installer) => {
+                let plugin_origin = PluginOrigin::new(&origin)?;
                 plugin_locs.insert(
                     normalize_plugin_name(name),
                     RecklessPlugin::new(
-                        origin.clone(),
+                        plugin_origin,
                         path.clone(),
                         repo_dir.clone(),
-                        name,
+                        name.to_owned(),
                         reckless_dir,
-                        is_local_path,
+                        installer,
+                        rl_manifest,
                     ),
                 );
 
@@ -546,86 +549,23 @@ pub async fn write_metadata(rl_plugin: &RecklessPlugin) -> Result<(), anyhow::Er
         return Err(anyhow!("{} is not a directory", install_dir.display()));
     }
 
-    let abs_source_path = match Url::parse(rl_plugin.origin()) {
-        Ok(url) if matches!(url.scheme(), "http" | "https") => rl_plugin.origin().to_owned(),
-        _ => fs::canonicalize(rl_plugin.origin())
-            .await?
-            .to_string_lossy()
-            .to_string(),
-    };
-
-    let installation_date = Utc::now().date_naive().to_string();
-
-    let installation_time = SystemTime::now()
-        .duration_since(UNIX_EPOCH)
-        .unwrap()
-        .as_secs();
-
-    let data = format!(
-        "installation date\n{}\n\
-         installation time\n{}\n\
-         original source\n{}\n\
-         requested commit\n{}\n\
-         installed commit\n{}\n",
-        installation_date,
-        installation_time,
-        abs_source_path,
-        serialize_optional(rl_plugin.requested_commit()),
-        serialize_optional(rl_plugin.installed_commit()),
-    );
-
-    fs::write(install_dir.join(".metadata"), data).await?;
+    fs::write(
+        install_dir.join(".metadata.json"),
+        serde_json::to_string_pretty(rl_plugin)?,
+    )
+    .await?;
 
     Ok(())
 }
 
-pub async fn read_metadata(plugin_dir: &Path) -> Result<Metadata, anyhow::Error> {
-    let metadata_file = plugin_dir.join(".metadata");
+pub async fn read_metadata(plugin_dir: &Path) -> Result<RecklessPlugin, anyhow::Error> {
+    let metadata_file = plugin_dir.join(".metadata.json");
 
     let contents = fs::read_to_string(metadata_file).await?;
 
-    let lines: Vec<&str> = contents.lines().collect();
+    let rl_plugin = serde_json::from_str(&contents)?;
 
-    let mut map = HashMap::<String, String>::new();
-
-    let mut i = 0;
-    while i + 1 < lines.len() {
-        map.insert(lines[i].trim().to_string(), lines[i + 1].trim().to_string());
-
-        i += 2;
-    }
-
-    let required = |key: &str| -> Result<String, anyhow::Error> {
-        map.get(key)
-            .cloned()
-            .ok_or_else(|| anyhow!("missing metadata field: {key}"))
-    };
-
-    let requested_commit = map.get("requested commit").and_then(|v| parse_optional(v));
-
-    Ok(Metadata {
-        installation_date: required("installation date")?,
-        installation_time: required("installation time")?
-            .parse()
-            .map_err(|_| anyhow!("invalid installation time"))?,
-        original_source: required("original source")?,
-        requested_commit,
-        installed_commit: required("installed commit")?,
-    })
-}
-
-fn parse_optional(s: &str) -> Option<String> {
-    match s.trim() {
-        "None" | "none" | "" => None,
-        v => Some(v.to_string()),
-    }
-}
-
-fn serialize_optional(v: Option<&str>) -> &str {
-    match v {
-        Some(s) => s,
-        None => "None",
-    }
+    Ok(rl_plugin)
 }
 
 pub fn parse_target(target: &str) -> Result<(String, Option<String>), anyhow::Error> {
@@ -685,18 +625,24 @@ pub async fn parse_install_target(
                     .to_str()
                     .ok_or_else(|| anyhow!("not a valid path: {}", local_path.display()))?
                     .to_owned();
+
+                let rl_manifest = read_reckless_manifest(&local_path).await?;
+                let mut rl_manifest = rl_manifest.unwrap_or_default();
+                let installer = detect_installer(&local_path, &mut rl_manifest).await?;
+
+                let plugin_origin = PluginOrigin::new(local_path.to_str().ok_or_else(|| {
+                    anyhow!("path contains invalid utf-8: {}", local_path.display())
+                })?)?;
                 search_results.insert(
                     plugin_name.clone(),
                     RecklessPlugin::new(
-                        local_path
-                            .to_str()
-                            .ok_or_else(|| anyhow!("not a valid path: {}", local_path.display()))?
-                            .to_owned(),
+                        plugin_origin,
                         local_path.clone(),
                         local_path,
-                        &plugin_name,
+                        plugin_name.clone(),
                         reckless_dir,
-                        true,
+                        installer,
+                        rl_manifest,
                     ),
                 );
                 (plugin_name, None)
@@ -741,15 +687,9 @@ pub async fn read_sources_file(
     Ok((urls, paths, source_file))
 }
 
-pub async fn find_entryfile(path: &Path, plugin_name: &str) -> Result<String, anyhow::Error> {
+async fn find_entryfile(path: &Path, plugin_name: &str) -> Result<PathBuf, anyhow::Error> {
     if !path.exists() {
         return Err(anyhow!("{} not found", path.display()));
-    }
-
-    let reckless_manifest = read_reckless_manifest(path).await?;
-    let entrypoint = reckless_manifest.and_then(|m| m.entrypoint);
-    if let Some(entrypoint) = entrypoint {
-        return Ok(entrypoint);
     }
 
     let mut entries = fs::read_dir(&path).await?;
@@ -768,12 +708,12 @@ pub async fn find_entryfile(path: &Path, plugin_name: &str) -> Result<String, an
         }
         if let Some(file_name) = entry.file_name().to_str() {
             if normalized_eq(file_name, plugin_name) {
-                return Ok(file_name.to_owned());
+                return Ok(PathBuf::from_str(file_name)?);
             }
 
             for guess in &guesses {
                 if normalized_eq(file_name, guess) {
-                    return Ok(file_name.to_owned());
+                    return Ok(PathBuf::from_str(file_name)?);
                 }
             }
 
@@ -801,17 +741,17 @@ pub async fn find_entryfile(path: &Path, plugin_name: &str) -> Result<String, an
             let file_path = path.join(file);
             let content = fs::read_to_string(&file_path).await?;
             if content.contains("plugin.run()") {
-                return Ok(file.to_owned());
+                return Ok(PathBuf::from_str(file)?);
             }
         }
     }
 
     if js_candidates.len() == 1 {
-        return Ok(js_candidates.first().unwrap().to_owned());
+        return Ok(PathBuf::from_str(js_candidates.first().unwrap())?);
     }
 
     if js_candidates.is_empty() && python_candidates.len() == 1 {
-        return Ok(python_candidates.first().unwrap().to_owned());
+        return Ok(PathBuf::from_str(python_candidates.first().unwrap())?);
     }
 
     Err(anyhow!(
@@ -820,7 +760,10 @@ pub async fn find_entryfile(path: &Path, plugin_name: &str) -> Result<String, an
     ))
 }
 
-pub async fn detect_installer(plugin_path: &Path) -> Result<Installer, anyhow::Error> {
+pub async fn detect_installer(
+    plugin_path: &Path,
+    rl_manifest: &mut RecklessManifest,
+) -> Result<Installer, anyhow::Error> {
     let mut entries = fs::read_dir(plugin_path).await?;
     let mut files = Vec::new();
 
@@ -838,25 +781,24 @@ pub async fn detect_installer(plugin_path: &Path) -> Result<Installer, anyhow::E
         .to_str()
         .ok_or_else(|| anyhow!("not a valid path"))?;
 
-    let reckless_manifest = read_reckless_manifest(plugin_path).await?;
-    let entrypoint = reckless_manifest
-        .as_ref()
-        .and_then(|m| m.entrypoint.clone());
-    let install_cmd = reckless_manifest
-        .as_ref()
-        .and_then(|m| m.install_cmd.clone());
-
-    if install_cmd.is_some() && entrypoint.is_some() {
+    if rl_manifest.install_cmd.as_ref().is_some() && rl_manifest.entrypoint.as_ref().is_some() {
         return Ok(Installer::Custom);
     }
 
-    let entry_file = if let Some(et) = entrypoint {
-        Some(et)
+    let entry_file = if let Some(et) = &rl_manifest.entrypoint {
+        Some(et.clone())
     } else {
         find_entryfile(plugin_path, plugin_name).await.ok()
     };
 
+    if let Some(ef) = &entry_file {
+        rl_manifest.entrypoint = Some(ef.clone());
+    }
+
     if has("Cargo.toml").is_some() {
+        if entry_file.is_none() {
+            rl_manifest.entrypoint = Some(PathBuf::from_str(plugin_name)?);
+        }
         if which("cargo").is_ok() {
             return Ok(Installer::Rust);
         }
@@ -864,6 +806,9 @@ pub async fn detect_installer(plugin_path: &Path) -> Result<Installer, anyhow::E
     }
 
     if has("go.mod").is_some() {
+        if entry_file.is_none() {
+            rl_manifest.entrypoint = Some(PathBuf::from_str(plugin_name)?);
+        }
         if which("go").is_ok() {
             return Ok(Installer::Go);
         }
@@ -880,11 +825,14 @@ pub async fn detect_installer(plugin_path: &Path) -> Result<Installer, anyhow::E
         return Err(anyhow!("node plugin requires npm"));
     }
 
-    let Some(actual_python_entry) = entry_file.and_then(|ef| has(&ef)) else {
-        return Err(anyhow!("python entry file not found"));
-    };
+    let actual_python_entry =
+        plugin_path.join(entry_file.ok_or_else(|| anyhow!("python entryfile not found"))?);
 
-    if !Path::new(actual_python_entry)
+    if !actual_python_entry.exists() {
+        return Err(anyhow!("python entry file not found"));
+    }
+
+    if !actual_python_entry
         .extension()
         .is_some_and(|ext| ext.eq_ignore_ascii_case("py"))
     {
@@ -1009,6 +957,7 @@ pub async fn update_config_file(
     removing: bool,
     option_lines: &mut Vec<(String, String)>,
     remove_options: &mut HashSet<String>,
+    old_options: &mut Vec<(String, Option<String>)>,
 ) -> anyhow::Result<bool> {
     if !path.exists() {
         return Ok(false);
@@ -1058,6 +1007,7 @@ pub async fn update_config_file(
             if line.starts_with(name) {
                 *line = format!("#{line}");
                 changed = true;
+                old_options.push(parse_key_val(line).unwrap());
                 break;
             }
         }
@@ -1074,9 +1024,7 @@ fn normalized_line(line: &str) -> &str {
     line.trim_start_matches('#').trim_start()
 }
 
-pub async fn read_reckless_manifest(
-    source: &Path,
-) -> Result<Option<RecklessManifest>, anyhow::Error> {
+async fn read_reckless_manifest(source: &Path) -> Result<Option<RecklessManifest>, anyhow::Error> {
     let manifest_path = source.join("manifest.json");
 
     if manifest_path.exists() {
@@ -1247,7 +1195,6 @@ pub async fn search_sources(
                 url.as_str().to_owned(),
                 repo_dir,
                 5,
-                false,
                 logger,
             )
             .await?,
@@ -1261,7 +1208,6 @@ pub async fn search_sources(
                 path.to_str().unwrap().to_owned(),
                 path,
                 3,
-                true,
                 logger,
             )
             .await?,
@@ -1341,6 +1287,8 @@ pub async fn add_plugin_to_config(
         .filter(|name| !option_lines.iter().any(|(n, _)| n == name))
         .collect();
 
+    let mut old_options: Vec<(String, Option<String>)> = Vec::new();
+
     let mut plugin_enabled = false;
 
     for config in plugin.state().get_cln_configs() {
@@ -1350,6 +1298,7 @@ pub async fn add_plugin_to_config(
             false,
             &mut option_lines,
             &mut remove_options,
+            &mut old_options,
         )
         .await?;
     }
@@ -1364,6 +1313,7 @@ pub async fn add_plugin_to_config(
         false,
         &mut option_lines,
         &mut remove_options,
+        &mut old_options,
     )
     .await?;
 
@@ -1388,7 +1338,7 @@ pub async fn remove_plugin_from_config(
     plugin: Plugin<PluginState>,
     plugin_entry: PathBuf,
     manifest: GetManifestResponse,
-) -> Result<(), anyhow::Error> {
+) -> Result<Vec<(String, Option<String>)>, anyhow::Error> {
     include_reckless_config(plugin.clone()).await?;
 
     let plugin_line = format!("plugin={}", plugin_entry.display());
@@ -1397,6 +1347,8 @@ pub async fn remove_plugin_from_config(
 
     let mut remove_options: HashSet<_> = manifest.options.into_iter().map(|o| o.name).collect();
 
+    let mut old_options: Vec<(String, Option<String>)> = Vec::new();
+
     for config in &plugin.state().get_cln_configs() {
         update_config_file(
             config,
@@ -1404,6 +1356,7 @@ pub async fn remove_plugin_from_config(
             true,
             &mut option_lines,
             &mut remove_options,
+            &mut old_options,
         )
         .await?;
     }
@@ -1418,10 +1371,11 @@ pub async fn remove_plugin_from_config(
         true,
         &mut option_lines,
         &mut remove_options,
+        &mut old_options,
     )
     .await?;
 
-    Ok(())
+    Ok(old_options)
 }
 
 async fn include_reckless_config(plugin: Plugin<PluginState>) -> Result<(), anyhow::Error> {

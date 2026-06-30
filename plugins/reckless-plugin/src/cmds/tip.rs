@@ -5,7 +5,7 @@ use serde_json::json;
 
 use crate::{
     structs::{PluginState, RecklessLogger, RecklessTopic, RpcResponse, RpcResult, TipArgs},
-    util::{parse_target, read_reckless_manifest, search_sources},
+    util::{parse_target, read_metadata},
 };
 
 pub async fn handle_tip(
@@ -29,33 +29,16 @@ pub async fn handle_tip(
         return Err(anyhow!(line));
     }
 
-    let mut search_results =
-        match search_sources(plugin.clone(), Some(plugin_name.clone()), &mut logger).await {
-            Ok(s) => s,
-            Err(e) => {
-                logger.log(&e.to_string(), LogLevel::UNUSUAL).await?;
-                return Err(e);
-            }
-        };
-    let Some(rl_plugin) = search_results.get_mut(&plugin_name) else {
-        let line = format!("{plugin_name} not found in any known sources");
+    let plugin_dir = plugin.state().reckless_dir.join(&plugin_name);
+    if !plugin_dir.exists() {
+        let line = format!("{plugin_name} is not installed");
         logger.log(&line, LogLevel::UNUSUAL).await?;
         return Err(anyhow!(line));
-    };
+    }
 
-    let reckless_manifest = match read_reckless_manifest(rl_plugin.source_path()).await {
-        Ok(res) => res,
-        Err(e) => {
-            logger.log(&e.to_string(), LogLevel::BROKEN).await?;
-            return Err(e);
-        }
-    };
+    let rl_plugin = read_metadata(&plugin_dir).await?;
 
-    let Some(rm) = reckless_manifest else {
-        return Err(anyhow!("no reckless manifest found for {plugin_name}"));
-    };
-
-    let Some(offer) = rm.offer else {
+    let Some(offer) = &rl_plugin.manifest().offer else {
         return Err(anyhow!(
             "no offer found in reckless manifest for {plugin_name}"
         ));
@@ -80,7 +63,7 @@ pub async fn handle_tip(
             payer_note: args.payer_note,
             retry_for: None,
             layers: None,
-            invstring: offer,
+            invstring: offer.clone(),
         })
         .await
     {
