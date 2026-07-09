@@ -25,6 +25,7 @@ RUN apt-get update && \
     libsodium-dev \
     libtool \
     m4 \
+    pkg-config \
     sudo \
     unzip \
     wget \

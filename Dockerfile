@@ -103,7 +103,8 @@ RUN dpkg --add-architecture ${target_arch_dpkg}
 RUN apt-get update && \
     apt-get install -qq -y --no-install-recommends \
         python3-dev \
-        lowdown
+        lowdown \
+        libatomic1
 
 # Install target-arch libraries
 RUN apt-get install -qq -y --no-install-recommends \
@@ -114,7 +115,8 @@ RUN apt-get install -qq -y --no-install-recommends \
     libsqlite3-dev:${target_arch_dpkg} \
     libpq-dev:${target_arch_dpkg} \
     libsodium-dev:${target_arch_dpkg} \
-    crossbuild-essential-${target_arch_dpkg}
+    crossbuild-essential-${target_arch_dpkg} \
+    python3-dev:${target_arch_dpkg}
 
 ARG AR=${target_arch}-ar
 ARG AS=${target_arch}-as
