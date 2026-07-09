@@ -77,12 +77,12 @@ Get dependencies:
 sudo apt-get update
 sudo apt-get install -y \
   jq autoconf automake build-essential git libtool libsqlite3-dev libffi-dev \
-  python3 python3-pip net-tools zlib1g-dev libsodium-dev gettext lowdown
+  python3 python3-pip net-tools zlib1g-dev libsodium-dev gettext lowdown pkg-config
 pip3 install --upgrade pip
 curl -LsSf https://astral.sh/uv/install.sh | sh
 ```
 
-After installing uv, restart your shell or run `source ~/.bashrc` to ensure `uv` is in your PATH.
+After installing uv, restart your shell or run the command shown by the install output (usually `source $HOME/.local/bin/env`) to ensure `uv` is in your PATH.
 
 If you don't have Bitcoin installed locally you'll need to install that as well. It's now available via [snapd](https://snapcraft.io/bitcoin-core).
 ```shell
@@ -180,7 +180,8 @@ sudo dnf update -y && \
                 protobuf-compiler \
                 protobuf-devel \
                 postgresql-devel \
-                python3-mako && \
+                python3-mako \
+                pkgconf-pkg-config && \
         sudo dnf clean all
 ```
 
@@ -240,7 +241,7 @@ lightningd --network=testnet
 
 OS version: FreeBSD 11.1-RELEASE or above
 ```shell
-pkg install git python py39-pip gmake libtool gmp sqlite3 postgresql13-client gettext autotools lowdown libsodium
+pkg install git python py39-pip gmake libtool gmp sqlite3 postgresql13-client gettext autotools lowdown libsodium pkgconf
 git clone https://github.com/ElementsProject/lightning.git
 pip install --upgrade pip
 pip3 install mako
@@ -282,7 +283,7 @@ OS version: OpenBSD 7.3
 
 Install dependencies:
 ```shell
-pkg_add git python gmake py3-pip libtool gettext-tools
+pkg_add git python gmake py3-pip libtool gettext-tools pkgconf
 pkg_add automake # (select highest version, automake1.16.2 at time of writing)
 pkg_add autoconf # (select highest version, autoconf-2.69p2 at time of writing)
 ```
@@ -495,9 +496,11 @@ gmake install
 
 Install dependencies:
 ```shell
-pacman --sync autoconf automake gcc git make python-pip
-pip install --user poetry
+pacman -Sy autoconf automake gcc git make python-pip which libtool lowdown jq libsodium pkgconf
+curl -LsSf https://astral.sh/uv/install.sh | sh
 ```
+
+After installing uv, restart your shell or run the command shown by the install output (usually `source $HOME/.local/bin/env`) to ensure `uv` is in your PATH.
 
 Clone Core Lightning:
 ```shell
@@ -505,16 +508,22 @@ git clone https://github.com/ElementsProject/lightning.git
 cd lightning
 ```
 
+If you want to build the Rust plugins (cln-grpc, clnrest, cln-bip353 and wss-proxy):
+```shell
+pacman -Sy cargo rustfmt protobuf
+```
+
 Build Core Lightning:
 ```shell
-python -m poetry install
+uv sync --all-extras --all-groups --frozen
 ./configure
-python -m poetry run make
+RUST_PROFILE=release uv run make
+sudo RUST_PROFILE=release make install
 ```
 
 Launch Core Lightning:
 ```
-./lightningd/lightningd
+lightningd
 ```
 
 ## To cross-compile for Android
@@ -620,7 +629,7 @@ Get dependencies:
 ```shell
 apk update
 apk add --virtual .build-deps ca-certificates alpine-sdk autoconf automake git libtool \
-sqlite-dev python3 py3-mako net-tools zlib-dev libsodium gettext
+sqlite-dev python3 py3-mako net-tools zlib-dev libsodium gettext pkgconf
 ```
 
 Clone lightning:
@@ -647,9 +656,3 @@ Install runtime dependencies:
 ```shell
 apk add libgcc libsodium sqlite-libs zlib
 ```
-
-## Python plugins
-
-Python plugins will be installed with the `poetry install` step mentioned above from development setup.
-
-Other users will need some Python packages if python plugins are used. Unfortunately there are some Python packages which are not packaged in Ubuntu, and so forced installation will be needed (Flag `--user` is recommended which will install them in user's own .local directory, so at least the risk of breaking Python globally can be avoided!).
