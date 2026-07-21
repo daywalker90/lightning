@@ -1,0 +1,61 @@
+name: Docker publish (reusable)
+
+on:
+  workflow_call:
+    inputs:
+      version:
+        type: string
+        required: true
+      push-latest:
+        type: string
+        default: 'false'
+
+jobs:
+  publish:
+    name: Tag and publish ${{ matrix.target }}
+    runs-on: ubuntu-22.04
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - target: lightningd
+            tag_suffix: ''
+          - target: lightningd-vls-signer
+            tag_suffix: '-vls'
+    steps:
+    - name: Setup Docker Buildx
+      uses: docker/setup-buildx-action@v4
+
+    - name: Log in to Docker Hub
+      uses: docker/login-action@v4
+      with:
+        username: ${{ secrets.DOCKER_USERNAME }}
+        password: ${{ secrets.DOCKER_PASSWORD }}
+
+    - name: Download digest
+      uses: actions/download-artifact@v8
+      with:
+        name: digest-${{ matrix.target }}
+        path: /tmp/digests
+
+    - name: Set up values
+      run: |
+        DIGEST=$(head -n1 /tmp/digests/digest.txt)
+        REPONAME=$(sed -n '2p' /tmp/digests/digest.txt | cut -d'=' -f2)
+        echo "DIGEST=$DIGEST" >> $GITHUB_ENV
+        echo "REPONAME=$REPONAME" >> $GITHUB_ENV
+
+        if [[ "${{ inputs.push-latest }}" == "true" ]] ||
+          ([[ "${{ github.ref_type }}" == "tag" ]] && [[ ! "${{ inputs.version }}" =~ rc ]]); then
+          echo "PUSHLATEST=true" >> $GITHUB_ENV
+        else
+          echo "PUSHLATEST=false" >> $GITHUB_ENV
+        fi
+
+    - name: Create and push tag(s) from digest
+      run: |
+        TAG_ARGS=(-t "${REPONAME}/lightningd:${{ inputs.version }}${{ matrix.tag_suffix }}")
+        if [[ "$PUSHLATEST" == "true" ]]; then
+          TAG_ARGS+=(-t "${REPONAME}/lightningd:latest${{ matrix.tag_suffix }}")
+        fi
+        docker buildx imagetools create "${TAG_ARGS[@]}" "${REPONAME}/lightningd@${DIGEST}"

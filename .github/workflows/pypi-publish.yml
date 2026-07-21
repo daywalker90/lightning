@@ -1,0 +1,41 @@
+name: PyPI publish (reusable)
+
+on:
+  workflow_call:
+    inputs:
+      dist-location:
+        type: string
+        default: 'test'
+
+jobs:
+  publish:
+    name: Publish ${{ matrix.PACKAGE }} 🐍
+    runs-on: ubuntu-22.04
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - PACKAGE: pyln-client
+          - PACKAGE: pyln-testing
+          - PACKAGE: pyln-proto
+    steps:
+    - name: Download built distribution
+      uses: actions/download-artifact@v8
+      with:
+        name: dist-${{ matrix.PACKAGE }}
+        path: dist/
+
+    - name: Install uv
+      uses: astral-sh/setup-uv@v8.1.0
+
+    - name: Publish distribution 📦 to Test PyPI
+      if: github.repository == 'ElementsProject/lightning' && inputs.dist-location == 'test'
+      env:
+        UV_PUBLISH_TOKEN: ${{ secrets.TEST_PYPI_API_TOKEN }}
+      run: uv publish --publish-url https://test.pypi.org/legacy/ --check-url https://test.pypi.org/simple/ dist/*
+
+    - name: Publish distribution 📦 to PyPI
+      if: github.repository == 'ElementsProject/lightning' && inputs.dist-location == 'prod'
+      env:
+        UV_PUBLISH_TOKEN: ${{ secrets.PYPI_API_TOKEN }}
+      run: uv publish dist/*
