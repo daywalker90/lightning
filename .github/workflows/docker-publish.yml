@@ -6,6 +6,9 @@ on:
       version:
         type: string
         required: true
+      repository-name:
+        type: string
+        default: 'elementsproject'
       push-latest:
         type: string
         default: 'false'
@@ -32,18 +35,16 @@ jobs:
         username: ${{ secrets.DOCKER_USERNAME }}
         password: ${{ secrets.DOCKER_PASSWORD }}
 
-    - name: Download digest
+    - name: Download staging tag
       uses: actions/download-artifact@v8
       with:
-        name: digest-${{ matrix.target }}
-        path: /tmp/digests
+        name: staging-${{ matrix.target }}
+        path: /tmp/staging
 
     - name: Set up values
       run: |
-        DIGEST=$(head -n1 /tmp/digests/digest.txt)
-        REPONAME=$(sed -n '2p' /tmp/digests/digest.txt | cut -d'=' -f2)
-        echo "DIGEST=$DIGEST" >> $GITHUB_ENV
-        echo "REPONAME=$REPONAME" >> $GITHUB_ENV
+        SOURCE=$(cat /tmp/staging/tag.txt)
+        echo "SOURCE=$SOURCE" >> $GITHUB_ENV
 
         if [[ "${{ inputs.push-latest }}" == "true" ]] ||
           ([[ "${{ github.ref_type }}" == "tag" ]] && [[ ! "${{ inputs.version }}" =~ rc ]]); then
@@ -52,10 +53,10 @@ jobs:
           echo "PUSHLATEST=false" >> $GITHUB_ENV
         fi
 
-    - name: Create and push tag(s) from digest
+    - name: Create and push real tag(s)
       run: |
-        TAG_ARGS=(-t "${REPONAME}/lightningd:${{ inputs.version }}${{ matrix.tag_suffix }}")
+        TAG_ARGS=(-t "${{ inputs.repository-name }}/lightningd:${{ inputs.version }}${{ matrix.tag_suffix }}")
         if [[ "$PUSHLATEST" == "true" ]]; then
-          TAG_ARGS+=(-t "${REPONAME}/lightningd:latest${{ matrix.tag_suffix }}")
+          TAG_ARGS+=(-t "${{ inputs.repository-name }}/lightningd:latest${{ matrix.tag_suffix }}")
         fi
-        docker buildx imagetools create "${TAG_ARGS[@]}" "${REPONAME}/lightningd@${DIGEST}"
+        docker buildx imagetools create "${TAG_ARGS[@]}" "$SOURCE"

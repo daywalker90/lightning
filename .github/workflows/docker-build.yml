@@ -14,17 +14,39 @@ on:
         default: 'linux/amd64,linux/arm64,linux/arm/v7'
 
 jobs:
+  # Turn the comma-separated platforms-to-build input into a JSON matrix array,
+  # so we can fan out per-platform without hardcoding the list twice.
+  plan:
+    name: Plan platform matrix
+    runs-on: ubuntu-24.04
+    outputs:
+      platforms: ${{ steps.plan.outputs.platforms }}
+    steps:
+      - id: plan
+        run: |
+          IFS=',' read -ra ARR <<< "${{ inputs.platforms-to-build }}"
+          JSON=$(printf '%s\n' "${ARR[@]}" | jq -R . | jq -sc .)
+          echo "platforms=$JSON" >> "$GITHUB_OUTPUT"
+
   build:
-    name: Build ${{ matrix.target }} (push by digest, untagged)
-    runs-on: ubuntu-22.04
+    name: Build ${{ matrix.target }} / ${{ matrix.platform }}
+    needs: plan
     strategy:
       fail-fast: false
       matrix:
+        target:
+          - lightningd
+          - lightningd-vls-signer
+        platform: ${{ fromJson(needs.plan.outputs.platforms) }}
         include:
-          - target: lightningd
-            tag_suffix: ''
-          - target: lightningd-vls-signer
-            tag_suffix: '-vls'
+          # Use native arm64 runners where available - avoids QEMU entirely.
+          - platform: linux/amd64
+            runner: ubuntu-22.04
+          - platform: linux/arm64
+            runner: ubuntu-22.04-arm
+          - platform: linux/arm/v7
+            runner: ubuntu-22.04     # no native 32-bit arm runner; still needs QEMU
+    runs-on: ${{ matrix.runner || 'ubuntu-22.04' }}
     steps:
     - name: Checkout repository
       uses: actions/checkout@v6
@@ -32,6 +54,7 @@ jobs:
         fetch-depth: 0
 
     - name: Set up QEMU
+      if: matrix.runner == 'ubuntu-22.04' && matrix.platform != 'linux/amd64'
       uses: docker/setup-qemu-action@v4
 
     - name: Setup Docker Buildx
@@ -43,32 +66,76 @@ jobs:
         username: ${{ secrets.DOCKER_USERNAME }}
         password: ${{ secrets.DOCKER_PASSWORD }}
 
-    - name: Build and push by digest
+    - name: Build single-platform image, push by digest
       id: build
       uses: docker/build-push-action@v7
       with:
         context: .
         file: ./Dockerfile
         target: ${{ matrix.target }}
-        platforms: ${{ inputs.platforms-to-build }}
+        platforms: ${{ matrix.platform }}
         build-args: |
           VERSION=${{ inputs.version }}
         outputs: type=image,name=${{ inputs.repository-name }}/lightningd,push-by-digest=true,name-canonical=true,push=true
-        cache-from: type=gha,scope=${{ matrix.target }}
-        cache-to: type=gha,mode=max,scope=${{ matrix.target }}
+        cache-from: type=gha,scope=${{ matrix.target }}-${{ matrix.platform }}
+        cache-to: type=gha,mode=max,scope=${{ matrix.target }}-${{ matrix.platform }}
 
-    - name: Save digest for publish step
+    - name: Save digest
       run: |
         mkdir -p /tmp/digests
-        {
-          echo "${{ steps.build.outputs.digest }}"
-          echo "REPONAME=${{ inputs.repository-name }}"
-        } > /tmp/digests/digest.txt
+        echo "${{ steps.build.outputs.digest }}" > /tmp/digests/digest.txt
 
     - name: Upload digest
       uses: actions/upload-artifact@v7
       with:
-        name: digest-${{ matrix.target }}
+        name: digest-${{ matrix.target }}-${{ strategy.job-index }}
         path: /tmp/digests/digest.txt
         if-no-files-found: error
+        retention-days: 1
+
+  merge:
+    name: Merge platform digests for ${{ matrix.target }}
+    needs: build
+    strategy:
+      matrix:
+        target: [lightningd, lightningd-vls-signer]
+    runs-on: ubuntu-24.04
+    steps:
+    - name: Setup Docker Buildx
+      uses: docker/setup-buildx-action@v4
+
+    - name: Log in to Docker Hub
+      uses: docker/login-action@v4
+      with:
+        username: ${{ secrets.DOCKER_USERNAME }}
+        password: ${{ secrets.DOCKER_PASSWORD }}
+
+    - name: Download all digests for this target
+      uses: actions/download-artifact@v8
+      with:
+        pattern: digest-${{ matrix.target }}-*
+        path: /tmp/digests
+        merge-multiple: false
+
+    - name: Create staging manifest list
+      run: |
+        DIGEST_REFS=""
+        for f in /tmp/digests/*/digest.txt; do
+          D=$(cat "$f")
+          DIGEST_REFS="$DIGEST_REFS ${{ inputs.repository-name }}/lightningd@${D}"
+        done
+        STAGING_TAG="${{ inputs.repository-name }}/lightningd:staging-${{ inputs.version }}-${{ matrix.target }}"
+        docker buildx imagetools create -t "$STAGING_TAG" $DIGEST_REFS
+        echo "STAGING_TAG=$STAGING_TAG" >> "$GITHUB_ENV"
+
+    - name: Save staging tag reference
+      run: |
+        mkdir -p /tmp/staging
+        echo "$STAGING_TAG" > /tmp/staging/tag.txt
+
+    - name: Upload staging tag
+      uses: actions/upload-artifact@v7
+      with:
+        name: staging-${{ matrix.target }}
+        path: /tmp/staging/tag.txt
         retention-days: 1
