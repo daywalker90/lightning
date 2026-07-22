@@ -21,8 +21,8 @@ on:
         description: Create a draft release
         default: false
         type: boolean
-      repository-name:
-        description: 'Docker repository name'
+      dh-repository-owner:
+        description: 'Dockerhub repository owner'
         default: 'elementsproject'
         required: false
       platforms-to-build:
@@ -83,8 +83,8 @@ jobs:
     uses: ./.github/workflows/docker-build.yml
     with:
       version: ${{ needs.check.outputs.version }}
-      repository-name: ${{ github.event.inputs.repository-name || 'daywalker990' }}
-      platforms-to-build: ${{ github.event.inputs.platforms-to-build || 'linux/amd64,linux/arm64,linux/arm/v7' }}
+      dh-repository-owner: ${{ github.event.inputs.dh-repository-owner }}
+      platforms-to-build: ${{ github.event.inputs.platforms-to-build }}
     secrets: inherit
 
   pypi-build:
@@ -119,8 +119,8 @@ jobs:
     uses: ./.github/workflows/docker-publish.yml
     with:
       version: ${{ needs.check.outputs.version }}
-      repository-name: ${{ github.event.inputs.repository-name || 'daywalker990' }}
-      push-latest: ${{ github.event.inputs.push-latest || 'false' }}
+      dh-repository-owner: ${{ github.event.inputs.dh-repository-owner }}
+      push-latest: ${{ github.event.inputs.push-latest }}
     secrets: inherit
 
   pypi-publish:
@@ -128,7 +128,7 @@ jobs:
     needs: [check, gate]
     uses: ./.github/workflows/pypi-publish.yml
     with:
-      dist-location: ${{ github.event.inputs.dist-location || 'test' }}
+      dist-location: ${{ github.event.inputs.dist-location }}
     secrets: inherit
 
   release-publish:

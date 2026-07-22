@@ -6,12 +6,12 @@ on:
       version:
         type: string
         required: true
-      repository-name:
+      dh-repository-owner:
         type: string
-        default: 'elementsproject'
+        required: true
       platforms-to-build:
         type: string
-        default: 'linux/amd64,linux/arm64,linux/arm/v7'
+        required: true
 
 jobs:
   # Turn the comma-separated platforms-to-build input into a JSON matrix array,
@@ -68,7 +68,7 @@ jobs:
         platforms: ${{ matrix.platform }}
         build-args: |
           VERSION=${{ inputs.version }}
-        outputs: type=image,name=${{ inputs.repository-name }}/lightningd,push-by-digest=true,name-canonical=true,push=true
+        outputs: type=image,name=${{ inputs.dh-repository-owner }}/lightningd,push-by-digest=true,name-canonical=true,push=true
         cache-from: type=gha,scope=${{ matrix.target }}-${{ matrix.platform }}
         cache-to: type=gha,mode=max,scope=${{ matrix.target }}-${{ matrix.platform }}
 
