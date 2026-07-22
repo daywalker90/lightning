@@ -5,7 +5,7 @@ on:
     inputs:
       dist-location:
         type: string
-        default: 'test'
+        required: true
 
 jobs:
   publish:

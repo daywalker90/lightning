@@ -6,12 +6,12 @@ on:
       version:
         type: string
         required: true
-      repository-name:
+      dh-repository-owner:
         type: string
-        default: 'elementsproject'
+        required: true
       push-latest:
         type: string
-        default: 'false'
+        required: true
 
 jobs:
   publish:
@@ -47,7 +47,7 @@ jobs:
         DIGEST_REFS=""
         for f in /tmp/digests/*/digest.txt; do
           D=$(cat "$f")
-          DIGEST_REFS="$DIGEST_REFS ${{ inputs.repository-name }}/lightningd@${D}"
+          DIGEST_REFS="$DIGEST_REFS ${{ inputs.dh-repository-owner }}/lightningd@${D}"
         done
         echo "DIGEST_REFS=$DIGEST_REFS" >> $GITHUB_ENV
 
@@ -60,8 +60,8 @@ jobs:
 
     - name: Create and push real tag(s)
       run: |
-        TAG_ARGS=(-t "${{ inputs.repository-name }}/lightningd:${{ inputs.version }}${{ matrix.tag_suffix }}")
+        TAG_ARGS=(-t "${{ inputs.dh-repository-owner }}/lightningd:${{ inputs.version }}${{ matrix.tag_suffix }}")
         if [[ "$PUSHLATEST" == "true" ]]; then
-          TAG_ARGS+=(-t "${{ inputs.repository-name }}/lightningd:latest${{ matrix.tag_suffix }}")
+          TAG_ARGS+=(-t "${{ inputs.dh-repository-owner }}/lightningd:latest${{ matrix.tag_suffix }}")
         fi
         docker buildx imagetools create "${TAG_ARGS[@]}" $DIGEST_REFS

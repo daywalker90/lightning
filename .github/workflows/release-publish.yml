@@ -8,7 +8,7 @@ on:
         required: true
       create_release:
         type: boolean
-        default: false
+        required: true
 
 jobs:
   release:

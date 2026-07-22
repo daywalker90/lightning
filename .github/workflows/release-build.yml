@@ -8,7 +8,7 @@ on:
         required: true
       skip_validation:
         type: boolean
-        default: false
+        required: true
 
 jobs:
   releases:

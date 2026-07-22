@@ -21,10 +21,6 @@ jobs:
       with:
         fetch-depth: 0
 
-    - name: Setup Version
-      run: |
-        echo "VERSION=$(git describe --tags --abbrev=0).post$(git describe --tags --abbrev=1 | awk -F "-" '{print $2}')" >> $GITHUB_ENV
-
     - name: Set up Python
       uses: actions/setup-python@v6
       with:
@@ -32,11 +28,6 @@ jobs:
 
     - name: Install uv
       uses: astral-sh/setup-uv@v8.1.0
-
-    - name: Update pyln versions
-      run: |
-        export VERSION=$(git describe --tags --abbrev=0)
-        make update-pyln-versions NEW_VERSION=$VERSION
 
     - name: Build distribution 📦
       run: uv build --package ${{ matrix.PACKAGE }}
