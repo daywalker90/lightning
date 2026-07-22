@@ -29,7 +29,7 @@ jobs:
           echo "platforms=$JSON" >> "$GITHUB_OUTPUT"
 
   build:
-    name: Build ${{ matrix.target }} / ${{ matrix.platform }}
+    name: Build ${{ matrix.target == 'lightningd-vls-signer' && 'vls' || 'normal' }} / ${{ matrix.platform }}
     needs: plan
     strategy:
       fail-fast: false
@@ -38,15 +38,7 @@ jobs:
           - lightningd
           - lightningd-vls-signer
         platform: ${{ fromJson(needs.plan.outputs.platforms) }}
-        include:
-          # Use native arm64 runners where available - avoids QEMU entirely.
-          - platform: linux/amd64
-            runner: ubuntu-22.04
-          - platform: linux/arm64
-            runner: ubuntu-22.04-arm
-          - platform: linux/arm/v7
-            runner: ubuntu-22.04     # no native 32-bit arm runner; still needs QEMU
-    runs-on: ${{ matrix.runner || 'ubuntu-22.04' }}
+    runs-on: ${{ matrix.platform == 'linux/arm64' && 'ubuntu-22.04-arm' || 'ubuntu-22.04' }}
     steps:
     - name: Checkout repository
       uses: actions/checkout@v6
@@ -54,7 +46,7 @@ jobs:
         fetch-depth: 0
 
     - name: Set up QEMU
-      if: matrix.runner == 'ubuntu-22.04' && matrix.platform != 'linux/amd64'
+      if: matrix.platform == 'linux/arm/v7'
       uses: docker/setup-qemu-action@v4
 
     - name: Setup Docker Buildx

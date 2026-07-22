@@ -83,7 +83,7 @@ jobs:
     uses: ./.github/workflows/docker-build.yml
     with:
       version: ${{ needs.check.outputs.version }}
-      repository-name: ${{ github.event.inputs.repository-name || 'elementsproject' }}
+      repository-name: ${{ github.event.inputs.repository-name || 'daywalker990' }}
       platforms-to-build: ${{ github.event.inputs.platforms-to-build || 'linux/amd64,linux/arm64,linux/arm/v7' }}
     secrets: inherit
 
@@ -119,6 +119,7 @@ jobs:
     uses: ./.github/workflows/docker-publish.yml
     with:
       version: ${{ needs.check.outputs.version }}
+      repository-name: ${{ github.event.inputs.repository-name || 'daywalker990' }}
       push-latest: ${{ github.event.inputs.push-latest || 'false' }}
     secrets: inherit
 
