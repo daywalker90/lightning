@@ -24,19 +24,16 @@ on:
       dh-repository-owner:
         description: 'Dockerhub repository owner'
         default: 'elementsproject'
-        required: false
       platforms-to-build:
         description: 'List of platforms to build'
         default: 'linux/amd64,linux/arm64,linux/arm/v7'
-        required: false
       push-latest:
-        description: 'Push the latest Docker tag also?'
-        default: 'false'
-        required: false
+        description: 'Push the latest Docker tag'
+        type: boolean
+        default: false
       dist-location:
         description: 'PyPI distribution location (test/prod)'
         default: 'test'
-        required: false
 
 jobs:
   check-version:
