@@ -32,74 +32,48 @@ on:
         type: boolean
         default: false
       dist-location:
-        description: 'PyPI distribution location (test/prod)'
+        description: 'PyPI distribution location'
+        type: choice
+        options:
+          - test
+          - prod
         default: 'test'
 
 jobs:
   check-version:
     name: Verify release tag
     uses: ./.github/workflows/check-release-tag.yml
+    with:
+      version: ${{ github.event.inputs.version }}
+      skip_validation: ${{ github.event.inputs.skip_validation == 'true' }}
 
-  check:
-    name: Validate release content
-    needs: check-version
-    outputs:
-      version: ${{ steps.capture.outputs.version }}
-    runs-on: ubuntu-latest
-    steps:
-      - name: Git checkout
-        uses: actions/checkout@v6
-        with:
-          fetch-depth: 0
-
-      - name: Determine version
-        run: |
-          if [[ "${{ github.event.inputs.version }}" != "" ]]; then
-            VERSION="${{ github.event.inputs.version }}"
-          elif [ "${{ github.ref_type }}" == "tag" ]; then
-            VERSION="${{ github.ref_name }}"
-          else
-            echo "No release version provided and no tag found."
-            exit 1
-          fi
-          echo "VERSION=$VERSION" >> "$GITHUB_ENV"
-
-      - name: Validate release
-        if: ${{ !(github.event_name == 'workflow_dispatch' && github.event.inputs.skip_validation) }}
-        run: tools/check-release.sh --version=${VERSION}
-
-      - name: Capture version output
-        id: capture
-        run: echo "version=${VERSION}" >> "$GITHUB_OUTPUT"
-
-  # ---- Build phase: all three run in parallel, nothing publishes yet ----
 
   docker-build:
     name: Docker build
-    needs: check
+    needs: check-version
     uses: ./.github/workflows/docker-build.yml
     with:
-      version: ${{ needs.check.outputs.version }}
-      dh-repository-owner: ${{ github.event.inputs.dh-repository-owner }}
-      platforms-to-build: ${{ github.event.inputs.platforms-to-build }}
+      version: ${{ needs.check-version.outputs.version }}
+      dh-repository-owner: ${{ github.event.inputs.dh-repository-owner || 'elementsproject' }}
+      platforms-to-build: ${{ github.event.inputs.platforms-to-build || 'linux/amd64,linux/arm64,linux/arm/v7' }}
     secrets: inherit
 
   pypi-build:
     name: PyPI build
-    needs: check
+    needs: check-version
     uses: ./.github/workflows/pypi-build.yml
+    with:
+      version: ${{ needs.check-version.outputs.version }}
     secrets: inherit
 
   release-build:
     name: Release binaries build
-    needs: check
+    needs: check-version
     uses: ./.github/workflows/release-build.yml
     with:
-      version: ${{ needs.check.outputs.version }}
+      version: ${{ needs.check-version.outputs.version }}
       skip_validation: ${{ github.event.inputs.skip_validation == 'true' }}
     secrets: inherit
-
-  # ---- Gate: only reachable if ALL THREE builds succeeded ----
 
   gate:
     name: All builds succeeded
@@ -108,31 +82,30 @@ jobs:
     steps:
       - run: echo "All three build paths succeeded — proceeding to publish."
 
-  # ---- Publish phase: only starts after the gate ----
-
   docker-publish:
     name: Docker publish
-    needs: [check, gate]
+    needs: [check-version, gate]
     uses: ./.github/workflows/docker-publish.yml
     with:
-      version: ${{ needs.check.outputs.version }}
-      dh-repository-owner: ${{ github.event.inputs.dh-repository-owner }}
+      version: ${{ needs.check-version.outputs.version }}
+      dh-repository-owner: ${{ github.event.inputs.dh-repository-owner || 'elementsproject' }}
       push-latest: ${{ github.event.inputs.push-latest }}
     secrets: inherit
 
   pypi-publish:
     name: PyPI publish
-    needs: [check, gate]
+    needs: [check-version, gate]
     uses: ./.github/workflows/pypi-publish.yml
     with:
+      version: ${{ needs.check-version.outputs.version }}
       dist-location: ${{ github.event.inputs.dist-location }}
     secrets: inherit
 
   release-publish:
     name: Release sign + draft
-    needs: [check, gate]
+    needs: [check-version, gate]
     uses: ./.github/workflows/release-publish.yml
     with:
-      version: ${{ needs.check.outputs.version }}
+      version: ${{ needs.check-version.outputs.version }}
       create_release: ${{ github.event.inputs.create_release == 'true' }}
     secrets: inherit
