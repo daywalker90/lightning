@@ -1,7 +1,11 @@
 name: PyPI build (reusable)
 
 on:
-  workflow_call: {}
+  workflow_call:
+    inputs:
+      version:
+        type: string
+        required: true
 
 jobs:
   build:
@@ -28,6 +32,10 @@ jobs:
 
     - name: Install uv
       uses: astral-sh/setup-uv@v8.1.0
+
+    - name: Update pyln versions
+      run: |
+        make update-pyln-versions NEW_VERSION=${{ inputs.version }}
 
     - name: Build distribution 📦
       run: uv build --package ${{ matrix.PACKAGE }}
