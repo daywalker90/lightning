@@ -50,9 +50,9 @@ jobs:
           export LIBRARY_PATH=/opt/homebrew/lib
 
           uv run ./configure --disable-valgrind --disable-compat
+          uv run gmake check-source
           uv run gmake
           uv run gmake check-gen-updated
-          uv run gmake check-source
           sudo gmake install
 
       - name: Run pytest
