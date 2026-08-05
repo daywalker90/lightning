@@ -37,7 +37,7 @@ jobs:
         run: |
           export PATH="/usr/local/opt:/Users/runner/.local/bin:/opt/homebrew/bin/python3.10/bin:$PATH"
 
-          brew install gnu-sed autoconf automake libtool openssl lowdown libsodium make
+          brew install gnu-sed autoconf automake libtool openssl lowdown libsodium make shellcheck
 
           # https://github.com/grpc/grpc/issues/31737#issuecomment-1323796842
           export GRPC_PYTHON_BUILD_SYSTEM_OPENSSL=1
@@ -50,6 +50,7 @@ jobs:
           export LIBRARY_PATH=/opt/homebrew/lib
 
           uv run ./configure --disable-valgrind --disable-compat
+          uv run gmake check-source
           uv run gmake
           uv run gmake check-gen-updated
           sudo gmake install
