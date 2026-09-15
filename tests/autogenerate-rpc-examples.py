@@ -1612,10 +1612,19 @@ def generate_list_examples(bitcoind, l1, l2, l3, c12, c23_2, c34_2, inv_l31, inv
         update_example(node=l2, method='listpeerchannels', params={}, response=listpeerchannels_res2)
 
         update_example(node=l1, method='listchannels', params={'short_channel_id': c12})
-        # l4's database was deleted for the recoverchannel example, so l3 will
-        # disable its side of their channel; that channel_update is emitted
-        # lazily, so wait for it or the listchannels snapshot below races it.
-        wait_for(lambda: [c['active'] for c in l3.rpc.listchannels(c34_2)['channels'] if c['source'] == l3.info['id']] == [False])
+        # l4's database was deleted for the recoverchannel example, but its
+        # recovered stub does not reliably make l3 close its side of their
+        # channel, so close it here.  Wait for the disable or the listchannels
+        # snapshot below races the closing channel_update.
+        def l3_l4_disabled():
+            return [c['active'] for c in l3.rpc.listchannels(c34_2)['channels'] if c['source'] == l3.info['id']] == [False]
+
+        if not l3_l4_disabled():
+            try:
+                l3.rpc.close(c34_2, unilateraltimeout=1)
+            except RpcError:
+                pass
+        wait_for(l3_l4_disabled)
         update_example(node=l3, method='listchannels', params={})
 
         listnodes_res1 = l2.rpc.listnodes(l3.info['id'])
