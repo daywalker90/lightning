@@ -45,6 +45,9 @@ probe=probe/two-tree-$$
 out=${TMPDIR:-/tmp}/two-tree-probe.$$
 mkdir -p "$out"
 
+# Invoked by the trap below, which shellcheck does not count as a use (SC2329
+# in 0.11, SC2317 in 0.9/0.10).
+# shellcheck disable=SC2329,SC2317
 cleanup() {
     git -C "$top" checkout -q "$start_branch" 2>/dev/null ||
         git -C "$top" checkout -q "$start_rev" 2>/dev/null
