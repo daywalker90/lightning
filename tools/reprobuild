@@ -85,13 +85,25 @@ def info(msg: str) -> None:
     print(f"reprobuild: {msg}", file=sys.stderr, flush=True)
 
 
-def run(*cmd: str, capture: bool = False, check: bool = True,
-        merge: bool = False, **kw) -> str:
-    """Run a command, returning stdout (and stderr, with merge) when asked."""
+def run(
+    *cmd: str,
+    capture: bool = False,
+    check: bool = True,
+    merge: bool = False,
+    stream_stderr: bool = False,
+    **kw,
+) -> str:
+    """Run a command, returning stdout (and stderr, with merge) when asked.
+    With stream_stderr, only stdout is captured and stderr goes to the
+    terminal, so a long build's log is visible while it runs."""
+    # Build logs can carry raw bytes; a decode error must never kill a release.
+    kw.setdefault("errors", "replace")
     if merge:
         kw["stderr"] = subprocess.STDOUT
         kw["stdout"] = subprocess.PIPE
         p = subprocess.run(cmd, text=True, **kw)
+    elif capture and stream_stderr:
+        p = subprocess.run(cmd, text=True, stdout=subprocess.PIPE, **kw)
     else:
         p = subprocess.run(cmd, text=True, capture_output=capture, **kw)
     if check and p.returncode != 0:
@@ -279,8 +291,14 @@ class Driver:
             run("docker", "run", "--rm", "-v", f"{store}:/seed",
                 self.pins()["NIX_IMAGE"], "sh", "-c", "cp -a /nix/. /seed/")
 
-    def nix(self, *args: str, capture: bool = False, check: bool = True,
-            merge: bool = False) -> str:
+    def nix(
+        self,
+        *args: str,
+        capture: bool = False,
+        check: bool = True,
+        merge: bool = False,
+        stream_stderr: bool = False,
+    ) -> str:
         subs = self.substituters()
         sub = "true" if self.substitute else "false"
         if self.args.host_nix:
@@ -295,11 +313,25 @@ class Driver:
                 die(f"the host's nix has sandbox={have or 'unknown'}; a release build "
                     "must be sandboxed.\n  Set 'sandbox = true' in /etc/nix/nix.conf "
                     "and restart nix-daemon, or drop --host-nix.")
-            return run("nix", "--extra-experimental-features", "nix-command flakes",
-                       "--option", "substituters", subs,
-                       "--option", "substitute", sub,
-                       "--option", "sandbox-fallback", "false",
-                       *args, capture=capture, check=check, merge=merge)
+            return run(
+                "nix",
+                "--extra-experimental-features",
+                "nix-command flakes",
+                "--option",
+                "substituters",
+                subs,
+                "--option",
+                "substitute",
+                sub,
+                "--option",
+                "sandbox-fallback",
+                "false",
+                *args,
+                capture=capture,
+                check=check,
+                merge=merge,
+                stream_stderr=stream_stderr,
+            )
 
         self.seed_store()
         # In a linked git worktree, `.git` is a file pointing at
@@ -320,20 +352,37 @@ class Driver:
             # sandbox-fallback = false makes a failure to set it up loud
             # instead of silently unreproducible.
             return run(
-                "docker", "run", "--rm", "--privileged",
-                "-v", f"{self.top}:{self.top}:ro", *mounts,
-                "-v", f"{self.store_dir()}:/nix",
-                "-v", f"{gc.name}:/root/.gitconfig:ro",
-                "-e", "NIX_CONFIG=" + "\n".join([
-                    "experimental-features = nix-command flakes",
-                    "filter-syscalls = false",
-                    "sandbox = true",
-                    "sandbox-fallback = false",
-                    f"substitute = {sub}",
-                    f"substituters = {subs}",
-                ]),
-                self.pins()["NIX_IMAGE"], "nix", *args,
-                capture=capture, check=check, merge=merge)
+                "docker",
+                "run",
+                "--rm",
+                "--privileged",
+                "-v",
+                f"{self.top}:{self.top}:ro",
+                *mounts,
+                "-v",
+                f"{self.store_dir()}:/nix",
+                "-v",
+                f"{gc.name}:/root/.gitconfig:ro",
+                "-e",
+                "NIX_CONFIG="
+                + "\n".join(
+                    [
+                        "experimental-features = nix-command flakes",
+                        "filter-syscalls = false",
+                        "sandbox = true",
+                        "sandbox-fallback = false",
+                        f"substitute = {sub}",
+                        f"substituters = {subs}",
+                    ]
+                ),
+                self.pins()["NIX_IMAGE"],
+                "nix",
+                *args,
+                capture=capture,
+                check=check,
+                merge=merge,
+                stream_stderr=stream_stderr,
+            )
 
     def host_path(self, store_path: str) -> Path:
         """A store path printed by the container exists only inside it: a
@@ -343,9 +392,19 @@ class Driver:
         return self.store_dir() / store_path.removeprefix("/nix/")
 
     def build_expr(self, expr: str) -> str:
-        out = self.nix("build", "--impure", "--max-jobs", str(self.args.jobs),
-                       "--print-out-paths", "--no-link", "-L", "--expr", expr,
-                       capture=True)
+        out = self.nix(
+            "build",
+            "--impure",
+            "--max-jobs",
+            str(self.args.jobs),
+            "--print-out-paths",
+            "--no-link",
+            "-L",
+            "--expr",
+            expr,
+            capture=True,
+            stream_stderr=True,
+        )
         if not out:
             die("nix build produced no output path")
         return out.splitlines()[-1]
