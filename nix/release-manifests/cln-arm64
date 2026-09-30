@@ -2,9 +2,10 @@ row
   arch arm64
   host aarch64-unknown-linux-musl
 recipe
-  default.nix dd32d1043c305db100d8b11d2d4542edd9e1e7cf040be5b457f2539ca61b96ee
+  default.nix cec0bca25a7cd8d009fb0332a538b3b7740dbaa35767881107635cb0b01ad163
   static-pie.nix 53b6c6f5f74c968f7a381119c5eecff57bbaa51ad3c0c157cb3f41bee6dbf96c
   flake-module.nix c6feedbd6e609c3e4e29c6d69a0f64f27a6e846cc4807f34c3099efe944dd24b
+  flake.nix 66b107f9cfbf0d69c0b9df603b583ddce493128aa00522acfee51c461f079b98
 toolchain
   gcc 16.2.0
   rustc 1.98.1
@@ -14,7 +15,6 @@ nativeBuildInputs
   aarch64-unknown-linux-musl-pkgconf-wrapper 2.5.1
   aarch64-unknown-linux-musl-rustc 1.98.1
   autoconf 2.73
-  autogen 5.18.16
   automake 1.18.1
   file 5.48
   gcc-wrapper 16.2.0

@@ -2,8 +2,9 @@ row
   arch amd64
   host x86_64-unknown-linux-musl
 recipe
-  vls.nix d47dd25b3e36c31e3cdfbe7592a926805731e27a882fc8ddc41887efda171ba7
+  vls.nix 9d38bae02faf962b80c8a929fbb9ad1d4cd011143e926f80e02cfcb91ad86d3a
   static-pie.nix 53b6c6f5f74c968f7a381119c5eecff57bbaa51ad3c0c157cb3f41bee6dbf96c
+  flake.nix 66b107f9cfbf0d69c0b9df603b583ddce493128aa00522acfee51c461f079b98
 pin
   url https://gitlab.com/lightning-signer/validating-lightning-signer.git
   version v0.14.0
