@@ -1146,16 +1146,19 @@ def main() -> None:
                    help="skip the image smoke test in `docker`")
     p.add_argument("--latest", action="store_true",
                    help="publish: also tag latest (never on an rc, never implied)")
+    p.add_argument("--no-verify", action="store_true",
+                   help="certify: regenerate the rows and manifests only, "
+                        "skipping the from-source build and the acceptance suite")
     p.add_argument("verb", choices=["fetch", "build", "vls", "zip", "docker", "sign",
                                     "verify", "certify", "publish", "disclose",
                                     "accept", "all"])
     p.add_argument("rest", nargs="*", metavar="archs|manifest",
                    help="`all` or arch tokens from nix/release-rows; "
-                        "verify takes a manifest; certify takes --no-verify")
+                        "verify takes a manifest")
     args = p.parse_args()
 
     d = Driver(args=args, top=top)
-    rest = [r for r in args.rest if r != "--no-verify"]
+    rest = list(args.rest)
     match args.verb:
         case "fetch": d.verb_fetch()
         case "build": d.verb_build(rest)
@@ -1164,7 +1167,7 @@ def main() -> None:
         case "docker": d.verb_docker()
         case "sign": d.verb_sign()
         case "verify": d.verb_verify(rest[0] if rest else "")
-        case "certify": d.verb_certify("--no-verify" in args.rest)
+        case "certify": d.verb_certify(args.no_verify)
         case "publish": d.verb_publish()
         case "disclose": d.verb_disclose()
         case "accept": d.verb_accept(rest)
