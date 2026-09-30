@@ -45,10 +45,13 @@ export GNUPGHOME
 trap 'rm -rf "$GNUPGHOME"' EXIT
 gpg --batch --quiet --import "$top"/contrib/keys/bitcoin/* 2>/dev/null
 status=$(gpg --batch --status-fd 1 --verify SHA256SUMS.asc SHA256SUMS 2>/dev/null || true)
-good=$(printf '%s\n' "$status" | grep -c '^\[GNUPG:\] VALIDSIG ' || true)
+# Distinct *keys*, not signature lines: the point of a minimum is that several
+# independent maintainers vouched for these bytes, and two signatures from one
+# key -- or one key imported twice -- would otherwise count as two vouches.
+good=$(printf '%s\n' "$status" | sed -n 's/^\[GNUPG:\] VALIDSIG \([0-9A-F]*\) .*/\1/p' | sort -u | grep -c . || true)
 bad=$(printf '%s\n' "$status" | grep -c '^\[GNUPG:\] BADSIG ' || true)
 printf '%s\n' "$status" | sed -n 's/^\[GNUPG:\] GOODSIG [0-9A-F]* /fetch: good signature: /p'
-echo "fetch: $good good signature(s) from vendored keys, $bad bad (minimum $MIN_SIGS)"
+echo "fetch: $good distinct key(s) with a good signature, $bad bad (minimum $MIN_SIGS)"
 [ "$bad" -eq 0 ] || { echo "fetch: BAD signature on SHA256SUMS.asc" >&2; exit 1; }
 [ "$good" -ge "$MIN_SIGS" ] || { echo "fetch: too few good signatures" >&2; exit 1; }
 
