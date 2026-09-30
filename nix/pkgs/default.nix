@@ -101,7 +101,10 @@ let
     with bp;
     [
       autoconf
-      autogen
+      # No GNU autogen: libwally's tools/autogen.sh is a shell script that runs
+      # autoreconf, and nothing in this build invokes the autogen program.  It
+      # was pulling guile 2.2.7 and its boehm-gc into the closure, which is
+      # broken under pkgsStatic in current nixpkgs.
       automake
       gettext
       gitMinimal
@@ -495,6 +498,10 @@ stdenv.mkDerivation {
         "default.nix ${builtins.hashFile "sha256" ./default.nix}"
         "static-pie.nix ${builtins.hashFile "sha256" ./static-pie.nix}"
         "flake-module.nix ${builtins.hashFile "sha256" ./flake-module.nix}"
+        # flake.nix too: its overlays reach every package in the row, which is
+        # not hypothetical -- a fetchurl overlay lived there and changed how
+        # every source tarball was fetched.
+        "flake.nix ${builtins.hashFile "sha256" ../../flake.nix}"
       ]
       + section "toolchain" [
         "gcc ${stdenv.cc.cc.version}"
