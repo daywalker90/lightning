@@ -884,7 +884,13 @@ class Driver:
                                 f'(builtins.getFlake "{self.flake_ref}")'
                                 f".legacyPackages.x86_64-linux.release.manifests.{name}",
                                 capture=True)
-                (self.top / "nix/release-manifests" / name).write_text(text)
+                # The trailing newline matters: the guard compares the file
+                # against the derivation's string with builtins.readFile, and
+                # run() strips what it captures, so a manifest written without
+                # it could never match and certify would leave the guard
+                # tripped in exactly the state it exists to clear.
+                (self.top / "nix/release-manifests" / name).write_text(
+                    text if text.endswith("\n") else text + "\n")
                 info(f"certify: wrote nix/release-manifests/{name}")
         info("certify: re-pinned rows and manifests; commit them before building")
         if no_verify:
