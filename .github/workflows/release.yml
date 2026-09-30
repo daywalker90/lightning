@@ -58,16 +58,9 @@ jobs:
       version: ${{ needs.check-version.outputs.version }}
     secrets: inherit
 
-  gate:
-    name: All builds succeeded
-    needs: [pypi-build]
-    runs-on: ubuntu-24.04
-    steps:
-      - run: echo "PyPI build succeeded — proceeding to publish."
-
   pypi-publish:
     name: PyPI publish
-    needs: [check-version, gate]
+    needs: [check-version, pypi-build]
     uses: ./.github/workflows/pypi-publish.yml
     with:
       version: ${{ needs.check-version.outputs.version }}
