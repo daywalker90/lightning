@@ -15,7 +15,8 @@
 #
 # Each row unpacks the tarball over / in a bare distro container and runs
 # smoke.sh: --version, a regtest start, and a getmanifest
-# handshake with every plugin (27/27 is the pass mark).
+# handshake with every plugin -- the pass mark is every plugin the tarball
+# actually ships, counted at run time.
 set -eu
 
 tarball=${1:?usage: portability.sh <tarball> [--images="ubuntu:26.04 ..."]}
@@ -51,6 +52,15 @@ trap 'rm -rf "$tmp"' EXIT
 mkdir -p "$tmp/tree"
 tar -xf "$tarball" -C "$tmp/tree"
 
+# How many plugins must answer getmanifest: counted from the tarball, not
+# written down.  A hardcoded number stops meaning anything the moment a plugin
+# is added or removed -- it would either keep passing against a stale floor or
+# fail a release for a deliberate removal.  The path is globbed rather than
+# spelled out so the install prefix is not baked in here too.
+plugins=$(find "$tmp/tree" -path '*/libexec/c-lightning/plugins/*' -type f | grep -c . || true)
+[ "$plugins" -gt 0 ] || { echo "portability: no plugins found in the tarball" >&2; exit 1; }
+echo "portability: $plugins plugins in the tarball; every one must answer getmanifest"
+
 pass=0 fail=0
 for img in $IMAGES; do
     echo "################ $img ($PLATFORM)"
@@ -63,8 +73,8 @@ for img in $IMAGES; do
     bad=$(grep -c '^FAIL ' "$tmp/out.$$" || true)
     ver=$(grep -m1 -A1 '=== --version' "$tmp/out.$$" | tail -1 || true)
     echo "  version line: $ver"
-    echo "  plugins: $ok ok, $bad FAIL"
-    if [ "$bad" = 0 ] && [ "$ok" -ge 27 ]; then
+    echo "  plugins: $ok ok, $bad FAIL (of $plugins in the tarball)"
+    if [ "$bad" = 0 ] && [ "$ok" -eq "$plugins" ]; then
         echo "  => PASS"
         pass=$((pass + 1))
     else

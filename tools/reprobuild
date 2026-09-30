@@ -77,7 +77,11 @@ def die(msg: str) -> None:
 
 
 def info(msg: str) -> None:
-    print(f"reprobuild: {msg}", flush=True)
+    """Progress goes to stderr, like die().  It must not go to stdout: the
+    verbs that capture a nix store path capture stdout, and a progress line
+    printed while seeding the store -- which only happens on a cold cache --
+    would be captured as part of the path."""
+    print(f"reprobuild: {msg}", file=sys.stderr, flush=True)
 
 
 def run(*cmd: str, capture: bool = False, check: bool = True,

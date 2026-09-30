@@ -13,8 +13,13 @@ lightningd --version
 lightning-cli --version
 echo "=== regtest start without bitcoind (expect: bcli fails to reach bitcoin-cli, lightningd exits)"
 mkdir -p /tmp/ln
-timeout 60 lightningd --network=regtest --lightning-dir=/tmp/ln --log-level=info --disable-plugin=clnrest 2>&1 | tail -25
-echo "lightningd exit=$?"
+# Through a file, not a pipe: `cmd | tail` would make $? tail's status, so
+# the exit code reported here would always be tail's 0 and this check would
+# pass however lightningd died.  POSIX sh has no PIPESTATUS.
+timeout 60 lightningd --network=regtest --lightning-dir=/tmp/ln --log-level=info --disable-plugin=clnrest > /tmp/ln/start.log 2>&1
+rc=$?
+tail -25 /tmp/ln/start.log
+echo "lightningd exit=$rc"
 echo "=== plugin manifest handshake: every plugin must answer getmanifest (static Rust included)"
 for p in /usr/libexec/c-lightning/plugins/*; do
     # keep stdin open: a plugin that sees EOF right after the request exits 0 before answering
