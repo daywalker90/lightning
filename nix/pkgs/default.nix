@@ -70,6 +70,7 @@ let
   # carries the reasoning for each wrapper; these are just the names it exports.
   inherit (import ./static-pie.nix { inherit pkgs lib; })
     arm32
+    mimalloc
     staticPieFlags
     staticPieCc
     releaseCc
@@ -520,6 +521,7 @@ stdenv.mkDerivation {
           "gcc ${stdenv.cc.cc.version}"
           "rustc ${rustBin.version}"
           "python ${bp.python3.version}"
+          "mimalloc ${mimalloc.version}"
         ]
         ++ rustBin.manifestLines
       )

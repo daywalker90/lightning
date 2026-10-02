@@ -2,8 +2,8 @@ row
   arch armhf
   host armv7l-unknown-linux-musleabihf
 recipe
-  vls.nix 1972c8b7ec8b98d2249322b26c231f396e6cedc687fa28c2892d492d2a76cb85
-  static-pie.nix 53b6c6f5f74c968f7a381119c5eecff57bbaa51ad3c0c157cb3f41bee6dbf96c
+  vls.nix db7b0effc675a1352863a4b540e3bf83324d957864c3c89e1d2e5c8cd7e97d31
+  static-pie.nix f767ac223422c6987850c71adab9a4f7de1e8f5589123ee18bb218881198b9df
   flake.nix 66b107f9cfbf0d69c0b9df603b583ddce493128aa00522acfee51c461f079b98
   rust-bin.nix 51d59ab9b8451020c4865bc28f036d601a78e10ec06d1104b4f535496ccd62b3
 pin
@@ -17,6 +17,7 @@ toolchain
   gcc 16.2.0
   rustc 1.98.1
   protobuf 36.2
+  mimalloc 3.5.3
   rust-dist 1.98.1 2026-09-03 48a229ceaefd4985c50990b14116b6d856af0985
   rust-dist rustc-x86_64-unknown-linux-gnu e974f036b28565f37c0f3bd92ddefa809bee16c04f9dcf07b9ed96e05aaaf7c4
   rust-dist cargo-x86_64-unknown-linux-gnu ea1de9f9e23107d97ee2b41a72c552f34064a593da503789218387aee59f3ba4
