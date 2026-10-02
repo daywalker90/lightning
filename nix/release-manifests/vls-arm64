@@ -2,8 +2,8 @@ row
   arch arm64
   host aarch64-unknown-linux-musl
 recipe
-  vls.nix db7b0effc675a1352863a4b540e3bf83324d957864c3c89e1d2e5c8cd7e97d31
-  static-pie.nix f767ac223422c6987850c71adab9a4f7de1e8f5589123ee18bb218881198b9df
+  vls.nix 3c352d5004c77608cef4a010d5e75a5f94bf29dd45af6ddb76cfcc3d8a9fff1b
+  static-pie.nix 2b0ec6abe3d9c95204a339bee42e89ea4bcb797867387d343ecee592a9bc3141
   flake.nix 66b107f9cfbf0d69c0b9df603b583ddce493128aa00522acfee51c461f079b98
   rust-bin.nix 51d59ab9b8451020c4865bc28f036d601a78e10ec06d1104b4f535496ccd62b3
 pin
