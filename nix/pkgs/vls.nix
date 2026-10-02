@@ -45,7 +45,7 @@
 let
   inherit (pkgs) stdenv;
   bp = pkgs.buildPackages;
-  inherit (import ./static-pie.nix { inherit pkgs lib; }) rustStaticPieCc noRpathEnv;
+  inherit (import ./static-pie.nix { inherit pkgs lib; }) rustStaticPieCc noRpathEnv mimalloc;
   rustBin = import ./rust-bin.nix { inherit pkgs lib; };
 
   # --- the pin -------------
@@ -344,6 +344,7 @@ stdenv.mkDerivation {
         "gcc ${stdenv.cc.cc.version}"
         "rustc ${rustBin.version}"
         "protobuf ${bp.protobuf.version}"
+        "mimalloc ${mimalloc.version}"
       ]
       ++ rustBin.manifestLines
     )

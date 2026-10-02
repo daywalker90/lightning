@@ -19,8 +19,8 @@
 # `pkgs` is the row's package set -- pkgsStatic, or
 # pkgsCross.<target>.pkgsStatic -- so every value below is per-row.
 #
-# Exports: arm32, staticPieFlags, staticPieCc, releaseCc, rustStaticPieCc and
-# noRpathEnv, all consumed by default.nix and vls.nix.
+# Exports: arm32, mimalloc, staticPieFlags, staticPieCc, releaseCc,
+# rustStaticPieCc and noRpathEnv, all consumed by default.nix and vls.nix.
 { pkgs, lib }:
 let
   inherit (pkgs) stdenv;
@@ -43,6 +43,12 @@ rec {
   # Static-pie on every row is what this preserves.  The alternatives were to
   # drop the 32-bit ARM row, or to ship it without ASLR.
   arm32 = stdenv.hostPlatform.isAarch32;
+  # musl's malloc made the static lightningd 16% slower than a glibc build,
+  # most of it in sqlite3_expanded_sql's alloc/copy churn.  The object, not
+  # libmimalloc.a: an archive member is only pulled for an undefined symbol,
+  # so libc.a could win the race and musl's malloc would ship silently.
+  mimalloc = pkgs.mimalloc;
+  mimallocObj = "${mimalloc}/lib/mimalloc.o";
   gccLibDir = "${stdenv.cc.cc}/lib/gcc/${stdenv.hostPlatform.config}/${stdenv.cc.cc.version}";
   muslLibDir = "${stdenv.cc.libc}/lib";
   # How "link this statically, as a PIE" is spelled for this row.
@@ -65,7 +71,7 @@ rec {
     exec ${stdenv.cc}/bin/${stdenv.cc.targetPrefix}cc \
       ${staticPieFlags} -nostartfiles \
       ${muslLibDir}/rcrt1.o ${muslLibDir}/crti.o ${gccLibDir}/crtbeginS.o \
-      "$@" \
+      ${mimallocObj} "$@" \
       ${gccLibDir}/crtendS.o ${muslLibDir}/crtn.o
   '';
   # What configure is handed as the compiler for the release link.
@@ -73,7 +79,8 @@ rec {
     if arm32 then
       "${staticPieCc}/bin/${stdenv.cc.targetPrefix}static-pie-cc"
     else
-      "${stdenv.cc.targetPrefix}cc ${staticPieFlags}";
+      # -Wl, so a compile-only invocation ignores the object instead of warning.
+      "${stdenv.cc.targetPrefix}cc ${staticPieFlags} -Wl,${mimallocObj}";
   # The second gap: rustc.
   #
   # rustc links a crt-static musl target with plain `-static` unless the
@@ -129,6 +136,7 @@ rec {
         *) args+=("$a") ;;
       esac
     done
-    exec ${stdenv.cc}/bin/${stdenv.cc.targetPrefix}cc ${staticPieFlags} "''${args[@]}"
+    # Rust's default System allocator calls malloc, so this covers it too.
+    exec ${stdenv.cc}/bin/${stdenv.cc.targetPrefix}cc ${staticPieFlags} ${mimallocObj} "''${args[@]}"
   '';
 }
