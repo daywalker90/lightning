@@ -2,8 +2,8 @@ row
   arch armhf
   host armv7l-unknown-linux-musleabihf
 recipe
-  default.nix 762d5bd7445380484f897fd8b377d30cb19705e29b2fc753e42c973839e656ac
-  static-pie.nix f767ac223422c6987850c71adab9a4f7de1e8f5589123ee18bb218881198b9df
+  default.nix 6d3a61d1d24a39f24c13c7717e865f7859445fdbe3503ff4a01ed1633ba5f2b0
+  static-pie.nix 2b0ec6abe3d9c95204a339bee42e89ea4bcb797867387d343ecee592a9bc3141
   rust-bin.nix 51d59ab9b8451020c4865bc28f036d601a78e10ec06d1104b4f535496ccd62b3
   flake-module.nix c6feedbd6e609c3e4e29c6d69a0f64f27a6e846cc4807f34c3099efe944dd24b
   flake.nix 66b107f9cfbf0d69c0b9df603b583ddce493128aa00522acfee51c461f079b98
