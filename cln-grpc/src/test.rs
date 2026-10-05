@@ -364,6 +364,24 @@ fn test_xkeysend() {
     assert_eq!(v, v2);
 }
 
+/// Regression test for S10-T14-1: malformed client pubkeys must be rejected, not panic.
+#[cfg(feature = "server")]
+#[test]
+fn test_grpc_listpeers_malformed_pubkey_rejected() {
+    use prost::Message;
+
+    // tag for field 1, wire type 2 (length-delimited) is 0x0a.
+    let mut wire = vec![0x0a, 33];
+    wire.extend_from_slice(&[0u8; 33]);
+
+    let req = ListpeersRequest::decode(&wire[..]).unwrap();
+    assert_eq!(req.id.as_deref(), Some(&[0u8; 33][..]));
+
+    let err = cln_rpc::model::requests::ListpeersRequest::try_from(req).unwrap_err();
+    assert_eq!(err.code(), tonic::Code::InvalidArgument);
+    assert!(err.message().contains("id"), "unexpected message: {}", err.message());
+}
+
 /// Verify serde round-trip: serialize to JSON, deserialize back, and
 /// check the re-serialized value matches the first serialization.
 macro_rules! assert_serde_roundtrip {
