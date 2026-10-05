@@ -123,8 +123,9 @@ Here's a checklist for the release process.
 ## Performing the Release
 
 1. `tools/reprobuild publish` in the previous section already pushed the tag and
-   created the GitHub release. Check that it reads the way you want, publish it
-   as not a draft, and re-enable the "Release 🚀" workflow
+   created the GitHub release **as a draft** — the artifacts and the tag are
+   public at that point, but the release page is not. Check that it reads the way
+   you want, publish it, and re-enable the "Release 🚀" workflow
    (`gh workflow enable "Release 🚀"`) if the project wants it back on.
 2. Announce the final release on core-lightning's release-chat channel on Discord & Telegram.
 3. Send a mail to c-lightning mailing list (`c-lightning@lists.ozlabs.org`), using the same wording as the Release Notes in GitHub.

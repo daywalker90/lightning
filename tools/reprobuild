@@ -1243,9 +1243,16 @@ class Driver:
             with tempfile.NamedTemporaryFile("w", suffix=".md") as nf:
                 nf.write(notes)
                 nf.flush()
-                run("gh", "release", "create", ver, "--title", ver,
+                # As a draft, deliberately.  Everything before this point is
+                # already public -- the artifacts are on the download host and
+                # the tag is pushed -- but the release page is the thing people
+                # read, and the runbook has always had the captain check it and
+                # publish it by hand.  Creating it published would skip that
+                # step silently.
+                run("gh", "release", "create", ver, "--draft", "--title", ver,
                     "--notes-file", nf.name, *assets)
-            info("publish: created the GitHub release")
+            info("publish: created the GitHub release as a DRAFT -- review it "
+                 "and publish it by hand")
         else:
             info("publish: no gh; create the GitHub release by hand")
         info('publish: done.  REMEMBER to re-enable the "Release 🚀" workflow')
