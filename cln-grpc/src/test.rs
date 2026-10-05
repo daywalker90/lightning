@@ -299,7 +299,7 @@ fn test_keysend() {
             maxfee: None,
         };
 
-    let u: cln_rpc::model::requests::KeysendRequest = g.into();
+    let u: cln_rpc::model::requests::KeysendRequest = g.try_into().unwrap();
     let _ser = serde_json::to_string(&u);
 
     let j = r#"{
@@ -344,7 +344,7 @@ fn test_xkeysend() {
         layers: vec!["xpay".to_owned()],
     };
 
-    let u: cln_rpc::model::requests::XkeysendRequest = g.into();
+    let u: cln_rpc::model::requests::XkeysendRequest = g.try_into().unwrap();
     let _ser = serde_json::to_string(&u);
 
     let j = r#"{
