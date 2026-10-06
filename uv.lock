@@ -3,16 +3,16 @@ revision = 3
 requires-python = ">=3.10, <4.0"
 resolution-markers = [
     "python_full_version == '3.14.*' and platform_machine == 'x86_64' and sys_platform == 'linux'",
-    "python_full_version != '3.14.*' and platform_machine == 'x86_64' and sys_platform == 'linux'",
     "python_full_version == '3.14.*' and platform_machine == 'aarch64' and sys_platform == 'linux'",
-    "python_full_version != '3.14.*' and platform_machine == 'aarch64' and sys_platform == 'linux'",
     "python_full_version == '3.14.*' and platform_machine == 'x86_64' and sys_platform == 'darwin'",
-    "python_full_version != '3.14.*' and platform_machine == 'x86_64' and sys_platform == 'darwin'",
     "python_full_version == '3.14.*' and platform_machine == 'arm64' and sys_platform == 'darwin'",
-    "python_full_version != '3.14.*' and platform_machine == 'arm64' and sys_platform == 'darwin'",
     "python_full_version == '3.14.*' and platform_machine == 'AMD64' and sys_platform == 'win32'",
-    "python_full_version != '3.14.*' and platform_machine == 'AMD64' and sys_platform == 'win32'",
     "(python_full_version == '3.14.*' and platform_machine != 'arm64' and platform_machine != 'x86_64' and sys_platform == 'darwin') or (python_full_version == '3.14.*' and platform_machine != 'aarch64' and platform_machine != 'x86_64' and sys_platform == 'linux') or (python_full_version == '3.14.*' and platform_machine != 'AMD64' and sys_platform == 'win32') or (python_full_version == '3.14.*' and sys_platform != 'darwin' and sys_platform != 'linux' and sys_platform != 'win32')",
+    "python_full_version != '3.14.*' and platform_machine == 'x86_64' and sys_platform == 'linux'",
+    "python_full_version != '3.14.*' and platform_machine == 'aarch64' and sys_platform == 'linux'",
+    "python_full_version != '3.14.*' and platform_machine == 'x86_64' and sys_platform == 'darwin'",
+    "python_full_version != '3.14.*' and platform_machine == 'arm64' and sys_platform == 'darwin'",
+    "python_full_version != '3.14.*' and platform_machine == 'AMD64' and sys_platform == 'win32'",
     "(python_full_version != '3.14.*' and platform_machine != 'arm64' and platform_machine != 'x86_64' and sys_platform == 'darwin') or (python_full_version != '3.14.*' and platform_machine != 'aarch64' and platform_machine != 'x86_64' and sys_platform == 'linux') or (python_full_version != '3.14.*' and platform_machine != 'AMD64' and sys_platform == 'win32') or (python_full_version != '3.14.*' and sys_platform != 'darwin' and sys_platform != 'linux' and sys_platform != 'win32')",
 ]
 
@@ -1403,7 +1403,7 @@ dev = [{ name = "pyln-proto", editable = "contrib/pyln-proto" }]
 
 [[package]]
 name = "pyln-client"
-version = "26.6.6"
+version = "26.10rc1"
 source = { editable = "contrib/pyln-client" }
 dependencies = [
     { name = "pyln-bolt7" },
@@ -1461,7 +1461,7 @@ dev = [
 
 [[package]]
 name = "pyln-proto"
-version = "26.6.6"
+version = "26.10rc1"
 source = { editable = "contrib/pyln-proto" }
 dependencies = [
     { name = "base58" },
@@ -1490,7 +1490,7 @@ dev = [{ name = "pytest", specifier = ">=8.0.0" }]
 
 [[package]]
 name = "pyln-testing"
-version = "26.6.6"
+version = "26.10rc1"
 source = { editable = "contrib/pyln-testing" }
 dependencies = [
     { name = "cheroot" },
