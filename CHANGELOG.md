@@ -4,6 +4,12 @@ All notable changes to this project will be documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
+## [26.10rc1] - 2026-09-22: "Quantum-Resistant Lightning Channel VI"
+
+### Changed
+
+ - CI arm workflow
+
 ## [26.06.8] - 2026-09-19: "Quantum-Resistant Lightning Channel V"
 
 This point release is recommended for all users.
