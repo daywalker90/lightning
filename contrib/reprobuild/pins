@@ -24,13 +24,16 @@ NIX_IMAGE_TAG=2.35.2
 # same day as v1.24.1 -- and the image track follows one of those branches.  So
 # do not "fix" this to 1.24.x without first checking that an image exists.
 #
-# By *index* digest, like NIX_IMAGE above and for the same reason: quay's
-# version tags float.  `v1.22.3` was re-pushed on 2026-10-02 and no longer
-# resolves to the bytes it did on 2026-09-30 -- upstream publishes a separate
-# `-immutable` tag precisely because the plain one moves -- so a tag here was
-# not a pin at all, however specific it looked.
-SKOPEO_IMAGE=quay.io/skopeo/stable@sha256:249b92db7297e5c801e19172dbb3b56fde88094a49740a5ededac8c2958bf2c0
-SKOPEO_IMAGE_TAG=v1.22.3
+# By *index* digest, like NIX_IMAGE above -- but of the `-immutable` tag, which
+# matters more than it sounds.  quay's version tags float: `v1.22.3` was
+# re-pushed on 2026-10-02 and again on 2026-10-07.  Worse, quay garbage-collects
+# a manifest once no tag points at it, so a digest taken from the floating tag
+# *stops resolving*: the digest below's predecessor, 249b92db, was verified
+# working on 2026-09-30 and was `manifest unknown` by 2026-10-07, which broke the
+# docker verb. Upstream publishes `-immutable` for exactly this, and it has not
+# moved since 2026-09-21. Pin that digest, so a tag keeps the manifest alive.
+SKOPEO_IMAGE=quay.io/skopeo/stable@sha256:c0ee1f4edca5c01cb8d5611124f92f3cc47196ecab68aee5d0f90834e00574d5
+SKOPEO_IMAGE_TAG=v1.22.3-immutable
 
 # The runtime image's base digest lives in the Dockerfile itself
 # (FROM debian:trixie-slim@sha256:...), bumped deliberately like a pin.
