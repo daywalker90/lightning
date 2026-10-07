@@ -3,6 +3,7 @@ import os
 import argparse
 from pathlib import Path
 from msggen.gen.grpc import GrpcGenerator, GrpcConverterGenerator, GrpcUnconverterGenerator, GrpcServerGenerator
+from msggen.gen.grpc.wire import WireState
 from msggen.gen.grpc2py import Grpc2PyGenerator
 from msggen.gen.rpc import RustGenerator, NotificationGenerator, HookGenerator
 from msggen.gen.generator import GeneratorChain
@@ -25,14 +26,15 @@ logging.basicConfig(
 def add_handler_gen_grpc(generator_chain: GeneratorChain, meta):
     """Load all mapped RPC methods, wrap them in a Service, and split them into messages.
     """
+    state = WireState()
     fname = Path("cln-grpc") / "proto" / "node.proto"
     dest = open(fname, "w")
-    generator_chain.add_generator(GrpcGenerator(dest, meta))
+    generator_chain.add_generator(GrpcGenerator(dest, meta, state))
 
     fname = Path("cln-grpc") / "src" / "convert.rs"
     dest = open(fname, "w")
-    generator_chain.add_generator(GrpcConverterGenerator(dest))
-    generator_chain.add_generator(GrpcUnconverterGenerator(dest))
+    generator_chain.add_generator(GrpcConverterGenerator(dest, state))
+    generator_chain.add_generator(GrpcUnconverterGenerator(dest, state))
 
     fname = Path("cln-grpc") / "src" / "server.rs"
     dest = open(fname, "w")
