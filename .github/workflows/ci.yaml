@@ -96,12 +96,21 @@ jobs:
           git clone https://github.com/lightning/bolts.git ../${BOLTDIR}
       - name: Configure
         run: ./configure --enable-debugbuild --enable-rust
+      - name: Install buf
+        env:
+          BUF_VERSION: "1.74.0"
+          BUF_SHA256: "92326d957d613712669fb55f9e4340946a8142a92120e09008459118778273d2"
+        run: |
+          curl -sSfL -o buf "https://github.com/bufbuild/buf/releases/download/v${BUF_VERSION}/buf-Linux-x86_64"
+          echo "${BUF_SHA256}  buf" | sha256sum --check
+          sudo install -m 0755 buf /usr/local/bin/buf
+          buf --version
       - name: Check source
         env:
           VALGRIND: 0
           PYTEST_OPTS: ${{ env.PYTEST_OPTS_BASE }}
         run: |
-          uv run make -j $(nproc) check-source BASE_REF="origin/${{ github.base_ref }}" CARGO=false CC=devtools/cc-nobuild SUPPRESS_GENERATION=1
+          uv run make -j $(nproc) check-source BASE_REF="origin/${{ github.base_ref }}" GRPC_BREAKING_BASE_REF="origin/${{ github.base_ref || 'master' }}" CARGO=false CC=devtools/cc-nobuild SUPPRESS_GENERATION=1
       - name: Upload test results
         if: always()
         uses: actions/upload-artifact@v7
