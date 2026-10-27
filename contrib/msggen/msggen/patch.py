@@ -149,6 +149,11 @@ class OptionalPatch(Patch):
             num += int(parts[2])
         return num
 
+    # Required in the schema, but added after v26.06 and not yet released.
+    keep_optional = {
+        "coin_movement.extra_tags",
+    }
+
     @staticmethod
     def supported():
         """Oldest supported version. Bump this if you no longer want
@@ -156,7 +161,7 @@ class OptionalPatch(Patch):
         fields more stringent.
         """
 
-        return OptionalPatch.version_to_number("v24.11")
+        return OptionalPatch.version_to_number("v26.06")
 
     def visit(self, f: model.Field, parent: Optional[model.Field] = None, **kwargs) -> None:
         # Return if the optional field has been set already
@@ -166,7 +171,7 @@ class OptionalPatch(Patch):
 
         # Default to false, and then overwrite it if required.
         f.optional = False
-        if not f.required:
+        if not f.required or f.path.replace("[]", "") in OptionalPatch.keep_optional:
             f.optional = True
 
         # Set to optional if support has been added recently
@@ -182,7 +187,7 @@ class OptionalPatch(Patch):
                 f.optional = True
 
         added = self.version_to_number(f.added)
-        if added >= self.supported():
+        if added > self.supported():
             f.optional = True
 
 
